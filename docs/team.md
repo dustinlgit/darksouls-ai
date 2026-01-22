@@ -6,11 +6,11 @@ title:  Team
 # {{ page.title }}
 
 
-## USER 1
+## Jason Wong
 ***UCI Net ID***: wongjh4
 
-## USER 2
+## Dustin Lee
 ***UCI Net ID***: dustidl1
 
-## USER 3
+## Leah Sun
 ***UCI Net ID***: leahs4
