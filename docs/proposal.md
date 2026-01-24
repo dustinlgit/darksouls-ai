@@ -13,11 +13,11 @@ This project aims to explore whether a learning based agent can acquire effectiv
 
 ## Project Goal
 
-Our Minimum Goal: To defeat random mobs, in the game.
+Our Minimum Goal: The agent learns to defeat a boss enemy a single time.
 
-Our Realistic Goal: To defeat one boss.
+Our Realistic Goal: The agent learns to defeat one boss enemy more consistently and optimally (less resources used, e.g., less damage taken, less healing used, worse player stats).
 
-Our Moonshot Goal: To defeat all bosses in the game. 
+Our Moonshot Goal: The agent is able to defeat all boss enemies.
 
 ## AI/ML Algorithms
 
@@ -25,9 +25,11 @@ Our agent will be primarily trained using DreamerV3, a model-based off-policy re
 
 ## Evaluation Plan
 
-We first want to be able to see if we can even collect data ranging from player movement, boss movement, health, and other stats from the game and somehow fuse that with Dreamer to help with our reinforcement learning. We would want to identify rewards, and cost of rewards somehow, by combining these stats. 
+The main metric of success for our project is the consistency of our agent in defeating a boss enemy (or enemies). In other words, we want to maximize the probability of successfully defeating a boss enemy per episode. Once our agent is able to consistently defeat a boss, we can optimize its behavior and various other metrics during combat. Other metrics will include damage taken, time taken, and reward metrics, per boss fight (episode). 
 
-If the data is too hard to obtain and parse, since there are so many variables to take in, we might have to shift gears to trying to use PPO instead of Dreamer, since that has been done before. And, worst case scenario, we might even switch games, to see if another one will be easier to work with in data collection. 
+The baseline metrics will come from a policy that takes random actions or a basic policy manually weighted towards certain actions. Another baseline to consider is the performance of a human player who is new to the game. As Dark Souls III is a complex game, the baseline policies are expected to perform abysmally, so an expected increase of 20% (flat) boss defeat rate is expected. Compared to a new player, we expect a trained agent to perform 100% better (relative).
+
+Qualitatively, as part of the Dreamer framework, the internals of the model will be tested in the real world environment (Dark Souls III). Sanity checking will include episodes being run with the current policy in the real environment. We can observe whether our agent has developed action patterns in response to the environment (boss enemy and current resources), or if the agent is randomly choosing actions. The agent dodging in response to enemy attacks and attacking the enemy when its vulnerable are qualitative signs of a successful policy. Debugging will be reliant on observing the agent's actions. If we observe behavior from the agent that is detrimental to their ability to defeat the enemy, we can do reward shaping to discourage it.
 
 ## AI Tool Usage
 
