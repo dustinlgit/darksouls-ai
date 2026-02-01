@@ -45,8 +45,7 @@ class ds3Env(gym.Env):
         compute reward,
         update memory variables,
         see if player is dead OR boss is dead'''
-        return
-    
+        
     def reset(self):
         '''must reset the boss fight, unpress all keys, reset variables used to train again'''
         return
