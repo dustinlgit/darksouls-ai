@@ -8,7 +8,6 @@ import traceback
 from memory import utils
 import win32gui
 import win32con
-import win32process
 import time
 
 
@@ -168,7 +167,7 @@ def sim_game():
                 boss_died_reset() #will crash since cant read boss if we call reset_game right away
                 time.sleep(10)
                 walk_to_boss()
-sim_game()
+#sim_game()
 
 (leah, jason, dustin) = (True, False, False) #CwwaHANGE! 
 def enter_game():

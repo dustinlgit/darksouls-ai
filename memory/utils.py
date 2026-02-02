@@ -11,7 +11,8 @@ def follow_chain(ds3, addr, offsets, debug=True):
             ptr = ds3.read_longlong(ptr + offset)
 
             if debug:
-                print(hex(ptr))
+                None
+                #print(hex(ptr))
 
         except Exception as e:
             print("Error handling memory offsets. Most likely harmless but a chain did fail.")
