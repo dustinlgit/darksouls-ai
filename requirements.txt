@@ -1,0 +1,9 @@
+torch>=2.0.0
+numpy>=1.24.0
+gymnasium>=0.29.0
+opencv-python>=4.8.0
+mss>=9.0.0
+pymem>=1.10.0
+pydirectinput>=1.0.4
+pywin32>=306
+matplotlib>=3.7.0

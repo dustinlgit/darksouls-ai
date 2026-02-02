@@ -26,18 +26,17 @@ def get_ds_window():
         print("Dark Souls not Found.")
 
 def get_one_frame():
-    '''gets 1 ss of the game in windowed mode'''
+    '''gets 1 ss of the game in windowed mode, returns frame as numpy array'''
     hwnd = get_ds_window()
     if not hwnd:
         print("Dark Souls not Found, could not get frame")
-        return
+        return None
     
     left, top, right, bottom = win32gui.GetClientRect(hwnd)
     screen_left, screen_top = win32gui.ClientToScreen(hwnd, (left, top))
     screen_right, screen_bottom = win32gui.ClientToScreen(hwnd, (right, bottom))
     w = screen_right - screen_left
     h = screen_bottom - screen_top
-    scale_factor = 0.5
 
     with mss.mss() as sct:
         monitor = {
@@ -47,11 +46,14 @@ def get_one_frame():
             "height": h
         }
         frame = np.array(sct.grab(monitor))[:, :, :3]
-    frame = cv2.resize(frame, (400, 400), fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA) #can change size 400x400, if needed
-    cv2.imwrite("ds3_frame.png", frame)
-    print("Saved ds3_frame.png")
+    frame = cv2.resize(frame, (400, 400), interpolation=cv2.INTER_AREA) #can change size 400x400, if needed
+    return frame
 
-while True:
-    get_one_frame()
-    time.sleep(0.5)
+# Uncomment to test frame capture
+# while True:
+#     frame = get_one_frame()
+#     if frame is not None:
+#         cv2.imwrite("ds3_frame.png", frame)
+#         print("Saved ds3_frame.png")
+#     time.sleep(0.5)
 
