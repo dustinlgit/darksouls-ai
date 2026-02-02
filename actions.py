@@ -86,7 +86,7 @@ def run_left(sec):
 def heal():
     pdi.press("r")
 
-def player_died_reset():
+def walk_to_boss():
     focus_window("DARK SOULS III")
     run_forward(1)
     pdi.keyDown("e")
@@ -102,6 +102,12 @@ def player_died_reset():
 
 def boss_died_reset():
     focus_window("DARK SOULS III")
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
     pdi.keyDown("e")
     time.sleep(1)
     pdi.keyUp("e")
@@ -150,18 +156,21 @@ def reset_game() -> tuple[bool, int]:
 
 def sim_game():
     '''continously runs game after player dies'''
-    player_died_reset()
+    walk_to_boss()
     while True:
         reset, death_val = reset_game()
         if reset:
             if(death_val == 1): #player died
                 time.sleep(15)
-                player_died_reset()
+                walk_to_boss()
             elif(death_val == 0):
-                boss_died_reset()
+                time.sleep(15) 
+                boss_died_reset() #will crash since cant read boss if we call reset_game right away
+                time.sleep(10)
+                walk_to_boss()
 sim_game()
 
-(leah, jason, dustin) = (True, False, False) #CHANGE! 
+(leah, jason, dustin) = (True, False, False) #CwwaHANGE! 
 def enter_game():
     '''this actually launches the bat file for you and clicks any button to enter the game menu... 
             just an experiment we can add to if we want to use this logic'''
