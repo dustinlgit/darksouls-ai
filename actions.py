@@ -20,36 +20,44 @@ def focus_window(window_title):
     time.sleep(0.1)
     return hwnd
 
+def ensure_ds3_focused(title="DARK SOULS III"):
+    hwnd = win32gui.FindWindow(None, title)
+    if not hwnd:
+        return None
+    if win32gui.GetForegroundWindow() != hwnd:
+        focus_window(title)
+    return hwnd
+
 def right_hand_light_attack():
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.click()
 
 def forward_run_attack():
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.keyDown("w")
     pdi.keyUp("w")
     pdi.click()
 
 def dodge():
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.keyDown(" ")
     pdi.keyUp(" ")
 
 def forward_roll_dodge():
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.keyDown("w")
     pdi.keyDown(" ")
     pdi.keyUp(" ")
     pdi.keyUp("w")
 
 def shield(sec):
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.mouseDown(button='right')
     time.sleep(sec)
     pdi.mouseUp(button='right')
 
 def run_forward(sec):
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.keyDown("w")
     pdi.keyDown(" ")
     time.sleep(sec) 
@@ -57,7 +65,7 @@ def run_forward(sec):
     pdi.keyUp(" ")
 
 def run_back(sec):
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.keyDown("s")
     pdi.keyDown(" ")
     time.sleep(sec) 
@@ -66,7 +74,7 @@ def run_back(sec):
 
 
 def run_right(sec):
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.keyDown("d")
     pdi.keyDown(" ")
     time.sleep(sec) 
@@ -75,7 +83,7 @@ def run_right(sec):
 
 
 def run_left(sec):
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.keyDown("a")
     pdi.keyDown(" ")
     time.sleep(sec) 
@@ -83,10 +91,11 @@ def run_left(sec):
     pdi.keyUp(" ")
 
 def heal():
+    ensure_ds3_focused("DARK SOULS III")
     pdi.press("r")
 
 def walk_to_boss():
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     run_forward(1)
     pdi.keyDown("e")
     time.sleep(1)
@@ -94,13 +103,13 @@ def walk_to_boss():
     pdi.keyDown("e")
     time.sleep(1)
     pdi.keyUp("e")
+    run_forward(3)
     pdi.keyDown("q") #lock's camera on boss
     time.sleep(1)
     pdi.keyUp("q")
-    run_forward(5)
 
 def boss_died_reset():
-    focus_window("DARK SOULS III")
+    ensure_ds3_focused("DARK SOULS III")
     pdi.keyDown("e")
     time.sleep(1)
     pdi.keyUp("e")
@@ -119,6 +128,15 @@ def boss_died_reset():
     pdi.keyDown("e")
     time.sleep(1)
     pdi.keyUp("e")
+def q_focus_boss():
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown("q")
+    time.sleep(0.8)
+    pdi.keyUp("q")
+
+def walk_and_focus_on_boss():
+    walk_to_boss()
+    q_focus_boss()
 
 def reset_game() -> tuple[bool, int]:
     '''returns (true, 0):Boss died, (true, 1):Player died, (false, 2):Neither died'''

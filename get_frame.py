@@ -18,12 +18,11 @@ def get_one_frame_fullscreen():
 
 def get_ds_window():
     hwnd = win32gui.FindWindow(None, "DARK SOULS III")
-    
     if hwnd:
-        print("Dark Souls Found.")
+        print("Dark Souls Window Found.")
         return hwnd
     else:
-        print("Dark Souls not Found.")
+        print("Dark Souls Window not Found.")
 
 def get_one_frame():
     '''gets 1 ss of the game in windowed mode, returns frame as numpy array'''

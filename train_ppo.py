@@ -3,7 +3,7 @@ Main training script for Dark Souls III PPO agent
 """
 import numpy as np
 import time
-from ppo import ds3Env
+from ppov2 import ds3Env
 from ppo_agent import PPOAgent
 import matplotlib.pyplot as plt
 from collections import deque

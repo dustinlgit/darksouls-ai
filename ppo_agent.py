@@ -41,7 +41,8 @@ class ActorCritic(nn.Module):
         x = F.relu(self.conv1(frame))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        x = x.view(x.size(0), -1)  # Flatten
+        #x = x.view(x.size(0), -1)  # Flatten #i changed this
+        x = x.reshape(x.size(0), -1)
         
         # Combine with stats
         combined = torch.cat([x, stats], dim=1)
