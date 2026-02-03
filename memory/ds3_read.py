@@ -6,6 +6,9 @@ ds3 = pymem.Pymem("DarkSoulsIII.exe")
 module = pymem.process.module_from_name(ds3.process_handle, "DarkSoulsIII.exe")
 
 # These are all pointers. Saved in memory to reduce recomputing.
+"""
+These are all pointers. Saved in memory to reduce recomputing.
+"""
 world_chr_man = get_world_chr_man(ds3, module)
 player_stats = follow_chain(ds3, world_chr_man, [0x80, 0x1F90, 0x18])
 player_curr_hp = player_stats + 0xD8

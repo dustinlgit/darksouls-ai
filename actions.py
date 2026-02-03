@@ -2,10 +2,192 @@ import subprocess
 from pathlib import Path
 import pydirectinput as pdi
 import time
-#this prob irrelevant to project, but might help if we use pydirectinput
+from memory import utils
+import pymem
+import traceback
+from memory import utils
+import win32gui
+import win32con
+import time
 
-(leah, jason, dustin) = (True, False, False) #CHANGE! 
 
+def focus_window(window_title):
+    hwnd = win32gui.FindWindow(None, window_title)
+    if not hwnd:
+        raise RuntimeError("Window not found")
+    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+    win32gui.SetForegroundWindow(hwnd)
+    time.sleep(0.1)
+    return hwnd
+
+def ensure_ds3_focused(title="DARK SOULS III"):
+    hwnd = win32gui.FindWindow(None, title)
+    if not hwnd:
+        return None
+    if win32gui.GetForegroundWindow() != hwnd:
+        focus_window(title)
+    return hwnd
+
+def right_hand_light_attack():
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.click()
+
+def forward_run_attack():
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown("w")
+    pdi.keyUp("w")
+    pdi.click()
+
+def dodge():
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown(" ")
+    pdi.keyUp(" ")
+
+def forward_roll_dodge():
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown("w")
+    pdi.keyDown(" ")
+    pdi.keyUp(" ")
+    pdi.keyUp("w")
+
+def shield(sec):
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.mouseDown(button='right')
+    time.sleep(sec)
+    pdi.mouseUp(button='right')
+
+def run_forward(sec):
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown("w")
+    pdi.keyDown(" ")
+    time.sleep(sec) 
+    pdi.keyUp("w")
+    pdi.keyUp(" ")
+
+def run_back(sec):
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown("s")
+    pdi.keyDown(" ")
+    time.sleep(sec) 
+    pdi.keyUp("s")
+    pdi.keyUp(" ")
+
+
+def run_right(sec):
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown("d")
+    pdi.keyDown(" ")
+    time.sleep(sec) 
+    pdi.keyUp("d")
+    pdi.keyUp(" ")
+
+
+def run_left(sec):
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown("a")
+    pdi.keyDown(" ")
+    time.sleep(sec) 
+    pdi.keyUp("a")
+    pdi.keyUp(" ")
+
+def heal():
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.press("r")
+
+def walk_to_boss():
+    ensure_ds3_focused("DARK SOULS III")
+    run_forward(1)
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
+    run_forward(3)
+    pdi.keyDown("q") #lock's camera on boss
+    time.sleep(1)
+    pdi.keyUp("q")
+
+def boss_died_reset():
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
+    pdi.keyDown("e")
+    time.sleep(1)
+    pdi.keyUp("e")
+def q_focus_boss():
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown("q")
+    time.sleep(0.8)
+    pdi.keyUp("q")
+
+def walk_and_focus_on_boss():
+    walk_to_boss()
+    q_focus_boss()
+
+def reset_game() -> tuple[bool, int]:
+    '''returns (true, 0):Boss died, (true, 1):Player died, (false, 2):Neither died'''
+    ds3 = pymem.Pymem("DarkSoulsIII.exe")
+    module = pymem.process.module_from_name(ds3.process_handle, "DarkSoulsIII.exe")
+    world_chr_man = utils.get_world_chr_man(ds3, module)
+    iudex_gundyr = utils.get_entity(ds3, world_chr_man, utils.IUDEX_GUNDYR)
+    player_stats = utils.follow_chain(ds3, world_chr_man, [0x80, 0x1F90, 0x18])
+    player_curr_hp = player_stats + 0xD8
+    iudex_curr_hp = iudex_gundyr + 0xD8
+    iudex_max_hp = iudex_gundyr + 0xDC
+    player_max_sp = player_stats + 0xF4
+    player_curr_sp = player_stats + 0xF0
+    player_max_hp = player_stats + 0xDC
+
+    print("----- Game Info ------")
+    print(f'Player Current HP: {ds3.read_int(player_curr_hp)}')
+    print(f'Player Max HP: {ds3.read_int(player_max_hp)}')
+    print(f'Player Current SP: {ds3.read_int(player_curr_sp)}')
+    print(f'Player Max SP: {ds3.read_int(player_max_sp)}')
+    print()
+    print(f'Boss Current HP: {ds3.read_int(iudex_curr_hp)}')
+    print(f'Boss Max HP: {ds3.read_int(iudex_max_hp)}')
+
+    if ds3.read_int(iudex_curr_hp) == 0:
+        print("Boss is dead")
+        return (True, 0)
+    elif ds3.read_int(player_curr_hp) == 0:
+        print("Player is dead")
+        return (True, 1)
+    time.sleep(2)
+    print("Neither died")
+    return (False, 2)
+
+def sim_game():
+    '''continously runs game after player dies'''
+    walk_to_boss()
+    while True:
+        reset, death_val = reset_game()
+        if reset:
+            if(death_val == 1): #player died
+                time.sleep(15)
+                walk_to_boss()
+            elif(death_val == 0):
+                time.sleep(15) 
+                boss_died_reset() #will crash since cant read boss if we call reset_game right away
+                time.sleep(10)
+                walk_to_boss()
+#sim_game()
+
+(leah, jason, dustin) = (True, False, False) #CwwaHANGE! 
 def enter_game():
     '''this actually launches the bat file for you and clicks any button to enter the game menu... 
             just an experiment we can add to if we want to use this logic'''
@@ -37,59 +219,3 @@ def enter_game():
     print("stopped trying")
 #enter_game()
 
-def right_hand_light_attack():
-    pdi.click()
-
-def forward_run_attack():
-    pdi.keyDown("w")
-    pdi.keyUp("w")
-    pdi.click()
-
-def dodge():
-    pdi.keyDown(" ")
-    pdi.keyUp(" ")
-
-def forward_roll_dodge():
-    pdi.keyDown("w")
-    pdi.keyDown(" ")
-    pdi.keyUp(" ")
-    pdi.keyUp("w")
-
-def shield(sec):
-    pdi.mouseDown(button='right')
-    time.sleep(sec)
-    pdi.mouseUp(button='right')
-
-def run_forward(sec):
-    pdi.keyDown("w")
-    pdi.keyDown(" ")
-    time.sleep(sec) 
-    pdi.keyUp("w")
-    pdi.keyUp(" ")
-
-def run_back(sec):
-    pdi.keyDown("s")
-    pdi.keyDown(" ")
-    time.sleep(sec) 
-    pdi.keyUp("s")
-    pdi.keyUp(" ")
-
-
-def run_right(sec):
-    pdi.keyDown("d")
-    pdi.keyDown(" ")
-    time.sleep(sec) 
-    pdi.keyUp("d")
-    pdi.keyUp(" ")
-
-
-def run_left(sec):
-    pdi.keyDown("a")
-    pdi.keyDown(" ")
-    time.sleep(sec) 
-    pdi.keyUp("a")
-    pdi.keyUp(" ")
-
-time.sleep(2)
-
-run_forward(5)
