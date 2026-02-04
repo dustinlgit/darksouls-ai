@@ -75,19 +75,36 @@ class ds3Env(gym.Env):
             boss_curr_hp = self.iudex_gundyr + self.boss_curr_hp_offset
             boss_max_hp = self.iudex_gundyr + self.boss_max_hp_offset
 
-            self.player_hp = self.ds3.read_int(player_curr_hp)
-            self.player_max_hp = self.ds3.read_int(player_max_hp)
-            self.player_sp = self.ds3.read_int(player_curr_sp)
-            self.player_max_sp = self.ds3.read_int(player_max_sp)
-            self.boss_hp = self.ds3.read_int(boss_curr_hp)
-            self.boss_max_hp = self.ds3.read_int(boss_max_hp)
+            curr_hp = self.ds3.read_int(player_curr_hp)
+            max_hp = self.ds3.read_int(player_max_hp)
+            curr_sp = self.ds3.read_int(player_curr_sp)
+            max_sp = self.ds3.read_int(player_max_sp)
+            boss_curr = self.ds3.read_int(boss_curr_hp)
+            boss_max = self.ds3.read_int(boss_max_hp)
+            
+            # Sanity checks for corrupted data
+            if curr_hp < 0 or curr_hp > 1000000:
+                print(f"Warning: Corrupted player HP: {curr_hp}")
+                curr_hp = self.player_hp if self.player_hp else 300
+            
+            if boss_curr < 0 or boss_curr > 2000000:
+                print(f"Warning: Corrupted boss HP: {boss_curr}")
+                boss_curr = self.boss_hp if self.boss_hp else 1037
+            
+            self.player_hp = curr_hp
+            self.player_max_hp = max_hp
+            self.player_sp = curr_sp
+            self.player_max_sp = max_sp
+            self.boss_hp = boss_curr
+            self.boss_max_hp = boss_max
+            
             return {
-                'player_hp': self.player_hp,
-                'player_max_hp': self.player_max_hp,
-                'player_sp': self.player_sp,
-                'player_max_sp': self.player_max_sp,
-                'boss_hp': self.boss_hp,
-                'boss_max_hp': self.boss_max_hp
+                'player_hp': curr_hp,
+                'player_max_hp': max_hp,
+                'player_sp': curr_sp,
+                'player_max_sp': max_sp,
+                'boss_hp': boss_curr,
+                'boss_max_hp': boss_max
             }
         except Exception as e:
             print(f"Error reading game state: {e}")
@@ -105,9 +122,9 @@ class ds3Env(gym.Env):
         state = self._get_game_state()
         
         # Normalize stats
-        player_hp_ratio = state['player_hp'] / state['player_max_hp']
-        player_sp_ratio = state['player_sp'] / state['player_max_sp']
-        boss_hp_ratio = state['boss_hp'] / state['boss_max_hp']
+        player_hp_ratio = state['player_hp'] / 454 #hardcoded so no div by 0 err?
+        player_sp_ratio = state['player_sp'] / 95
+        boss_hp_ratio = state['boss_hp'] / 1037
         self.player_hp = state['player_hp']
         distance = 0.5  # Placeholder - could calculate from frame or memory
         
@@ -121,8 +138,7 @@ class ds3Env(gym.Env):
                 frame = np.zeros((400, 400, 3), dtype=np.uint8)
         except Exception as e:
             print(f"Error getting frame: {e}")
-            frame = np.zeros((400, 400, 3), dtype=np.uint8)
-        
+            frame = np.zeros((400, 400, 3), dtype=np.uint8)        
         return {'stats': stats, 'frame': frame}
     
     def _calculate_reward(self, state, prev_state):
@@ -236,36 +252,101 @@ class ds3Env(gym.Env):
     def reset(self, seed=None, options=None):
         '''must reset the boss fight, unpress all keys, reset variables used to train again'''
         super().reset(seed=seed)
-        state = self._get_game_state()
+        
+        # Release all keys first to ensure clean state
+        actions.release_all_keys()
+        time.sleep(1)
+        
+        # Check current state
+        max_retries = 3
+        for retry in range(max_retries):
+            try:
+                state = self._get_game_state()
+                # Verify we got valid state
+                if state['player_hp'] > 0 and state['player_hp'] < 1000000:
+                    break
+                if retry < max_retries - 1:
+                    print(f"Invalid state read, retrying... ({retry + 1}/{max_retries})")
+                    time.sleep(1)
+            except Exception as e:
+                print(f"Error reading state on retry {retry + 1}: {e}")
+                if retry < max_retries - 1:
+                    time.sleep(1)
+        
         # handle boss dead / player dead
         player_dead = state['player_hp'] <= 0
         boss_dead = state['boss_hp'] <= 0
-        if(not boss_dead and not player_dead):
-            actions.walk_to_boss()
-        elif(player_dead):
-            time.sleep(15)
-            actions.walk_to_boss()
-        elif(boss_dead):
+        
+        print("Player dead: ", player_dead)
+        print("Boss dead: ", boss_dead)
+        
+        if player_dead:
+            # Player dead, wait for respawn and reinitialize pointers
+            print("Waiting for respawn (10 seconds)...")
+            time.sleep(10)
+            
+            # Reinitialize pointers after respawn
+            try:
+                print("Reinitializing pointers...")
+                self.world_chr_man = utils.get_world_chr_man(self.ds3, self.module)
+                self.player_stats = utils.follow_chain(self.ds3, self.world_chr_man, [0x80, 0x1F90, 0x18])
+                self.iudex_gundyr = utils.get_entity(self.ds3, self.world_chr_man, utils.IUDEX_GUNDYR)
+                print("Pointers reinitialized successfully")
+                time.sleep(2)  # Extra time for pointers to stabilize
+            except Exception as e:
+                print(f"Error reinitializing pointers: {e}")
+                print("Attempting to continue anyway...")
+                time.sleep(3)
+        
+        elif boss_dead:
+            # Boss dead, reset boss arena
+            print("Boss dead, resetting arena (15 seconds)...")
             time.sleep(15)
             actions.boss_died_reset()
             time.sleep(10)
-            actions.walk_to_boss()
-        print("Player dead: ", player_dead)
-        print("Boss dead: ", boss_dead)
+        
+        # Walk to boss
+        print("Walking to boss...")
         actions.walk_to_boss()
+        
         # Reset state variables
         self.step_count = 0
         self.prev_player_hp = None
         self.prev_boss_hp = None
 
-        # Get initial state
-        state = self._get_game_state()
+        # Get initial state with validation
+        try:
+            state = self._get_game_state()
+            # If we got corrupted data, use defaults
+            if state['player_hp'] <= 0 or state['player_hp'] > 1000000:
+                print("Warning: Got corrupted HP value, using defaults")
+                state = {
+                    'player_hp': 454,
+                    'player_max_hp': 454,
+                    'player_sp': 95,
+                    'player_max_sp': 95,
+                    'boss_hp': 1037,
+                    'boss_max_hp': 1037
+                }
+        except Exception as e:
+            print(f"Error getting initial state: {e}")
+            state = {
+                'player_hp': 300,
+                'player_max_hp': 300,
+                'player_sp': 100,
+                'player_max_sp': 100,
+                'boss_hp': 1037,
+                'boss_max_hp': 1037
+            }
+        
         self.player_hp = state['player_hp']
         self.player_max_hp = state['player_max_hp']
         self.player_sp = state['player_sp']
         self.player_max_sp = state['player_max_sp']
         self.boss_hp = state['boss_hp']
         self.boss_max_hp = state['boss_max_hp']
+        
+        print(f"Reset complete - Initial state: Player HP={self.player_hp}, Boss HP={self.boss_hp}")
         
         # Get initial observation
         obs = self._get_observation()
