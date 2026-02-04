@@ -1,22 +1,36 @@
-from utils import BOSSES, WORLD_CHR_MAN_PATTERN
+from utils import WORLD_CHR_MAN_PATTERN
 from entity import Entity
 
 import pymem
 
+
 class DS3Reader:
+
     ds3 = pymem.Pymem("DarkSoulsIII.exe");
     module = pymem.process.module_from_name(ds3.process_handle, "DarkSoulsIII.exe")
 
 
     def __init__(self, enemy, debug=False):
         self.debug = debug
+        self.enemy = enemy
+
+        self._initialize()
+
+
+    def _initialize(self):
         self.world_chr_man = self._get_world_chr_man()
-        self.player = self._create_player()
-        self.boss = self._create_boss(enemy)
+        self._player = self._create_player()
+        self._boss = self._create_boss(self.enemy)
+    
+
+    @property 
+    def player(self):
+        return self._player
 
 
-    def reset(self):
-        self.__init__();
+    @property 
+    def boss(self):
+        return self._boss
 
 
     def _create_boss(self, boss):

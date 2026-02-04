@@ -12,22 +12,22 @@ class Entity:
 
 
     @property
-    def hp():
+    def hp(self):
         return self.ds3.read_int(self._hp_addr)
 
 
     @property
-    def max_hp():
+    def max_hp(self):
         return self._max_hp 
 
 
     @property
-    def sp():
-        self.ds3.read_int(self._max_hp_addr)
+    def sp(self):
+        self.ds3.read_int(self._sp_addr)
 
 
     @property
-    def max_sp():
+    def max_sp(self):
         return self._max_sp
 
 
