@@ -274,8 +274,8 @@ class ds3Env(gym.Env):
                     time.sleep(1)
         
         # handle boss dead / player dead
-        player_dead = state['player_hp'] <= 0
-        boss_dead = state['boss_hp'] <= 0
+        player_dead = state['player_hp'] == 0
+        boss_dead = state['boss_hp'] == 0
         
         print("Player dead: ", player_dead)
         print("Boss dead: ", boss_dead)
