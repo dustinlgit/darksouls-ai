@@ -32,12 +32,12 @@ class DS3Reader:
 
 
     def _create_boss(self, boss):
-        return Entity(self._get_entity(boss), self.ds3)
+        return Entity(self._get_entity(boss), self)
 
 
     def _create_player(self):
-        player_addr = self._follow_chain(self.world_chr_man, [0x80, 0x1F90, 0x18])
-        return Entity(player_addr, self.ds3);
+        player_addr = self.follow_chain(self.world_chr_man, [0x80, 0x1F90])
+        return Entity(player_addr, self);
 
 
     def _get_entity(self, entity_identifier):
@@ -47,13 +47,14 @@ class DS3Reader:
         """
 
         chr_num = self.ds3.read_int(self.ds3.read_longlong(self.world_chr_man + 0x1D0))
-        chr_set = self._follow_chain(self.world_chr_man, [0x1D0, 0x8])
+        chr_set = self.follow_chain(self.world_chr_man, [0x1D0, 0x8])
         
         entity = None
         for i in range(chr_num):
-            sprj_chr_data_module = self._follow_chain(chr_set, [i * 0x38, 0x1F90, 0x18])
+            chr_data = self.follow_chain(chr_set, [i * 0x38, 0x1F90])
+            sprj_chr_data_module = self.follow_chain(chr_data, [0x18])
             if self.ds3.read_int(sprj_chr_data_module + 0xDC) == entity_identifier:
-                entity = sprj_chr_data_module
+                entity = chr_data
         
         if entity is None: 
             raise ValueError(f'Entity with identifier [{entity_identifier}] could not be found.')
@@ -74,7 +75,7 @@ class DS3Reader:
         return self.ds3.read_longlong(world_chr_man_addr)
 
 
-    def _follow_chain(self, addr, offsets):
+    def follow_chain(self, addr, offsets):
         """
         Follows a pointer chain given a list of offsets.
         Ex: *(*(*(addr + offset1) + offset2) + ...) where * is dereferencing.
