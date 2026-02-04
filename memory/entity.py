@@ -13,7 +13,7 @@ class Entity:
 
     @property
     def hp(self):
-        return self.ds3.read_int(self._hp_addr)
+        return self._ds3.read_int(self._hp_addr)
 
 
     @property
@@ -23,7 +23,7 @@ class Entity:
 
     @property
     def sp(self):
-        self.ds3.read_int(self._sp_addr)
+        return self._ds3.read_int(self._sp_addr)
 
 
     @property

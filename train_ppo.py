@@ -3,7 +3,7 @@ Main training script for Dark Souls III PPO agent
 """
 import numpy as np
 import time
-from ppov2 import ds3Env
+from ppov2 import DS3Env
 from ppov2 import actions
 from ppo_agent import PPOAgent
 import matplotlib.pyplot as plt
@@ -17,13 +17,13 @@ def train_ppo(
     update_frequency=2048,  # Update every N steps
     save_frequency=50,  # Save model every N episodes
     model_save_path="models/ppo_ds3",
-    log_frequency=10
+    log_frequency=1
 ):
     """Train PPO agent on Dark Souls III environment"""
     
     # Create environment
     print("Initializing environment...")
-    env = ds3Env()
+    env = DS3Env()
     
     # Create agent
     print("Initializing PPO agent...")
@@ -54,12 +54,20 @@ def train_ppo(
     print("=" * 60)
     
     try:
+        # TODO: Maybe extract game win/lose state to env object itself
+        # Here for the first run of env.reset()
+        episode_win = False
+
         for episode in range(num_episodes):
-            obs, info = env.reset()
+            env.reset(episode_win)
+            env.reset_state()
+            obs = env._get_observation()
+
+            episode_win = False
             episode_reward = 0
             episode_length = 0
-            episode_win = False
-            for step in range(max_steps_per_episode):
+
+            for _ in range(max_steps_per_episode):
                 # Select action
                 action = agent.select_action(obs)
                 
@@ -75,8 +83,8 @@ def train_ppo(
                 total_steps += 1
                 
                 # Check if episode ended
-                if terminated or truncated:
-                    if step_info.get('boss_hp', 1) <= 0:
+                if is_terminal:
+                    if terminated == DS3Env.PLAYER_WIN:
                         episode_win = True
                     break
                 
@@ -199,7 +207,7 @@ def test_agent(model_path, num_episodes=5):
     """Test trained agent"""
     print(f"\nTesting agent from {model_path}...")
     
-    env = ds3Env()
+    env = DS3Env()
     agent = PPOAgent(state_dim=4, action_dim=11)
     agent.load(model_path)
     

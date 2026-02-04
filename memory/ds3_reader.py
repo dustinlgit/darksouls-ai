@@ -1,5 +1,5 @@
-from utils import WORLD_CHR_MAN_PATTERN
-from entity import Entity
+from .utils import WORLD_CHR_MAN_PATTERN
+from .entity import Entity
 
 import pymem
 
@@ -13,11 +13,9 @@ class DS3Reader:
     def __init__(self, enemy, debug=False):
         self.debug = debug
         self.enemy = enemy
+    
 
-        self._initialize()
-
-
-    def _initialize(self):
+    def initialize(self):
         self.world_chr_man = self._get_world_chr_man()
         self._player = self._create_player()
         self._boss = self._create_boss(self.enemy)
@@ -34,7 +32,7 @@ class DS3Reader:
 
 
     def _create_boss(self, boss):
-        return Entity(self._get_entity(boss))
+        return Entity(self._get_entity(boss), self.ds3)
 
 
     def _create_player(self):
@@ -53,7 +51,7 @@ class DS3Reader:
         
         entity = None
         for i in range(chr_num):
-            sprj_chr_data_module = self.follow_chain(chr_set, [i * 0x38, 0x1F90, 0x18])
+            sprj_chr_data_module = self._follow_chain(chr_set, [i * 0x38, 0x1F90, 0x18])
             if self.ds3.read_int(sprj_chr_data_module + 0xDC) == entity_identifier:
                 entity = sprj_chr_data_module
         
