@@ -127,10 +127,9 @@ def walk_to_boss():
     pdi.keyDown("e")
     time.sleep(1)
     pdi.keyUp("e")
-    run_forward(3)
+    run_forward(5)
     pdi.keyDown("q") #lock's camera on boss
     time.sleep(1)
-    run_forward(2)
     pdi.keyUp("q")
 
 def boss_died_reset():
