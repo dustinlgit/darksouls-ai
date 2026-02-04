@@ -171,13 +171,20 @@ class PPOAgent:
         returns = self.compute_returns(rewards, is_terminals, next_value)
         returns = torch.FloatTensor(returns).to(self.device)
         
-        # Normalize returns
-        returns = (returns - returns.mean()) / (returns.std() + 1e-8)
+        # Normalize returns with more stability
+        returns_mean = returns.mean()
+        returns_std = returns.std()
+        if returns_std < 1e-8:
+            returns_std = 1e-8
+        returns = (returns - returns_mean) / returns_std
         
         # Get old values
         with torch.no_grad():
             _, old_values = self.policy(old_states_stats, old_states_frames)
             old_values = old_values.squeeze()
+            # Ensure old_values has same shape as returns
+            if old_values.dim() == 0:
+                old_values = old_values.unsqueeze(0)
         
         advantages = returns - old_values
         
@@ -186,6 +193,20 @@ class PPOAgent:
             # Get current policy
             action_probs, values = self.policy(old_states_stats, old_states_frames)
             values = values.squeeze()
+            # Ensure values has same shape as returns
+            if values.dim() == 0:
+                values = values.unsqueeze(0)
+            
+            # Ensure action_probs are valid (no NaN)
+            if torch.isnan(action_probs).any():
+                print("Warning: NaN detected in action_probs, skipping update")
+                self.reset_buffer()
+                return {
+                    'actor_loss': 0.0,
+                    'critic_loss': 0.0,
+                    'entropy': 0.0,
+                    'mean_return': 0.0
+                }
             
             dist = torch.distributions.Categorical(action_probs)
             new_log_probs = dist.log_prob(old_actions)

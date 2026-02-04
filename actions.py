@@ -21,12 +21,30 @@ def focus_window(window_title):
     return hwnd
 
 def ensure_ds3_focused(title="DARK SOULS III"):
-    hwnd = win32gui.FindWindow(None, title)
-    if not hwnd:
-        return None
-    if win32gui.GetForegroundWindow() != hwnd:
-        focus_window(title)
-    return hwnd
+    try:
+        hwnd = win32gui.FindWindow(None, title)
+        if not hwnd:
+            return None
+        if win32gui.GetForegroundWindow() != hwnd:
+            focus_window(title)
+        return hwnd
+    except:
+        print("Window check failed, but might just be on cd")
+
+def release_all_keys():
+    """Release all held keys to ensure clean state"""
+    keys_to_release = ['w', 'a', 's', 'd', ' ', 'e', 'q', 'r', 'shift', 'ctrl']
+    for key in keys_to_release:
+        try:
+            pdi.keyUp(key)
+        except:
+            pass
+    # Release mouse buttons
+    try:
+        pdi.mouseUp(button='left')
+        pdi.mouseUp(button='right')
+    except:
+        pass
 
 def right_hand_light_attack():
     ensure_ds3_focused("DARK SOULS III")
@@ -37,6 +55,11 @@ def forward_run_attack():
     pdi.keyDown("w")
     pdi.keyUp("w")
     pdi.click()
+
+def change_potion():
+    ensure_ds3_focused("DARK SOULS III")
+    pdi.keyDown('down')
+    pdi.keyUp('down')
 
 def dodge():
     ensure_ds3_focused("DARK SOULS III")
@@ -95,6 +118,7 @@ def heal():
     pdi.press("r")
 
 def walk_to_boss():
+    release_all_keys()
     ensure_ds3_focused("DARK SOULS III")
     run_forward(1)
     pdi.keyDown("e")
@@ -106,10 +130,12 @@ def walk_to_boss():
     run_forward(3)
     pdi.keyDown("q") #lock's camera on boss
     time.sleep(1)
+    run_forward(2)
     pdi.keyUp("q")
 
 def boss_died_reset():
     ensure_ds3_focused("DARK SOULS III")
+    release_all_keys()
     pdi.keyDown("e")
     time.sleep(1)
     pdi.keyUp("e")
@@ -133,10 +159,6 @@ def q_focus_boss():
     pdi.keyDown("q")
     time.sleep(0.8)
     pdi.keyUp("q")
-
-def walk_and_focus_on_boss():
-    walk_to_boss()
-    q_focus_boss()
 
 def reset_game() -> tuple[bool, int]:
     '''returns (true, 0):Boss died, (true, 1):Player died, (false, 2):Neither died'''

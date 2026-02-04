@@ -4,11 +4,13 @@ Main training script for Dark Souls III PPO agent
 import numpy as np
 import time
 from ppov2 import ds3Env
+from ppov2 import actions
 from ppo_agent import PPOAgent
 import matplotlib.pyplot as plt
 from collections import deque
 import os
-
+# actions.change_potion() 
+    #   !!!! either change potion to yellow manually before training, or run this ONCE only
 def train_ppo(
     num_episodes=1000,
     max_steps_per_episode=10000,
@@ -57,8 +59,6 @@ def train_ppo(
             episode_reward = 0
             episode_length = 0
             episode_win = False
-            
-            # Run episode
             for step in range(max_steps_per_episode):
                 # Select action
                 action = agent.select_action(obs)
@@ -90,8 +90,8 @@ def train_ppo(
                               f"Critic Loss: {update_info['critic_loss']:.4f}, "
                               f"Entropy: {update_info['entropy']:.4f}")
             
-            # Final update if buffer has data
-            if len(agent.states_stats) > 0:
+            # Final update if buffer has sufficient data (at least 10 steps)
+            if len(agent.states_stats) >= 10:
                 update_info = agent.update()
             
             # Record statistics
