@@ -2,6 +2,9 @@ import pymem
 
 
 IUDEX_GUNDYR = 1037
+BOSSES = [IUDEX_GUNDYR]
+
+WORLD_CHR_MAN_PATTERN = b"\x48\x8B\x1D...\x04\x48\x8B\xF9\x48\x85\xDB..\x8B\x11\x85\xD2..\x8D"
 
 
 def follow_chain(ds3, addr, offsets, debug=True):
