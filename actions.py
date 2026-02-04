@@ -2,10 +2,7 @@ import subprocess
 from pathlib import Path
 import pydirectinput as pdi
 import time
-from memory import utils
-import pymem
 import traceback
-from memory import utils
 import win32gui
 import win32con
 import time
@@ -159,38 +156,6 @@ def q_focus_boss():
     time.sleep(0.8)
     pdi.keyUp("q")
 
-def reset_game() -> tuple[bool, int]:
-    '''returns (true, 0):Boss died, (true, 1):Player died, (false, 2):Neither died'''
-    ds3 = pymem.Pymem("DarkSoulsIII.exe")
-    module = pymem.process.module_from_name(ds3.process_handle, "DarkSoulsIII.exe")
-    world_chr_man = utils.get_world_chr_man(ds3, module)
-    iudex_gundyr = utils.get_entity(ds3, world_chr_man, utils.IUDEX_GUNDYR)
-    player_stats = utils.follow_chain(ds3, world_chr_man, [0x80, 0x1F90, 0x18])
-    player_curr_hp = player_stats + 0xD8
-    iudex_curr_hp = iudex_gundyr + 0xD8
-    iudex_max_hp = iudex_gundyr + 0xDC
-    player_max_sp = player_stats + 0xF4
-    player_curr_sp = player_stats + 0xF0
-    player_max_hp = player_stats + 0xDC
-
-    print("----- Game Info ------")
-    print(f'Player Current HP: {ds3.read_int(player_curr_hp)}')
-    print(f'Player Max HP: {ds3.read_int(player_max_hp)}')
-    print(f'Player Current SP: {ds3.read_int(player_curr_sp)}')
-    print(f'Player Max SP: {ds3.read_int(player_max_sp)}')
-    print()
-    print(f'Boss Current HP: {ds3.read_int(iudex_curr_hp)}')
-    print(f'Boss Max HP: {ds3.read_int(iudex_max_hp)}')
-
-    if ds3.read_int(iudex_curr_hp) == 0:
-        print("Boss is dead")
-        return (True, 0)
-    elif ds3.read_int(player_curr_hp) == 0:
-        print("Player is dead")
-        return (True, 1)
-    time.sleep(2)
-    print("Neither died")
-    return (False, 2)
 
 def sim_game():
     '''continously runs game after player dies'''
