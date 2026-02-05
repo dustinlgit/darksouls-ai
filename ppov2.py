@@ -5,6 +5,7 @@ from gymnasium import spaces
 import numpy as np
 from memory import DS3Reader, BOSSES
 from get_frame import get_one_frame
+import math
 
 class DS3Env(gym.Env):
     RUNNING = 0
@@ -37,7 +38,7 @@ class DS3Env(gym.Env):
 
     def _get_observation(self):
         """Get current observation (stats + frame)"""
-        distance = 0.5  # Placeholder - could calculate from frame or memory
+        distance = math.dist(self.player.pos, self.boss.pos)
         
         stats = np.array([self.player.norm_hp, self.player.norm_sp, self.boss.norm_hp, distance], dtype=np.float32)
         
@@ -58,31 +59,36 @@ class DS3Env(gym.Env):
         reward = 0.0
         
         # Reward for dealing damage to boss
-        if prev_boss_hp > 0:
-            boss_damage = prev_boss_hp - self.boss.hp
-            if boss_damage > 0:
-                reward += boss_damage * 0.1  # Reward for dealing damage
+        boss_damage = prev_boss_hp - self.boss.hp
+        if boss_damage > 0:
+            reward += (boss_damage / self.boss.max_hp) * 3 # Reward for dealing damage
         
         # Penalty for taking damage
-        if prev_player_hp > 0:
-            player_damage = prev_player_hp - self.player.hp
-            if player_damage > 0:
-                reward -= player_damage * 0.2  # Penalty for taking damage
+        player_damage = prev_player_hp - self.player.hp
+        if player_damage > 0:
+            reward -= (player_damage / self.player.max_hp) * 1  # Penalty for taking damage
+
+        # Add penalty for being too far away; ~3 units is the
+        #  attack range so little more leeway before penalty
+        dist_to_boss = math.dist(self.player.pos, self.boss.pos)
+        if dist_to_boss > 3.5:
+            reward -= (dist_to_boss - 3.5) * 0.01
         
         # Large reward for killing boss
         if self.boss.hp <= 0:
-            reward += 1000.0
+            reward += 10
         
         # Large penalty for dying
         if self.player.hp <= 0:
-            reward -= 500.0
+            reward -= 1.5
         
-        # Small survival reward
-        reward += 0.1
+        # Small detriment for being alive
+        # We want to force the agent to be more aggressive
+        reward -= 0.0005
         
         # Penalty for running out of stamina (encourages stamina management)
         if self.player.sp < 10:
-            reward -= 0.05
+            reward -= (10 - self.player.sp) * 0.005
         
         return reward
 

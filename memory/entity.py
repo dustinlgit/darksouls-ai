@@ -62,3 +62,8 @@ class Entity:
     @property
     def y(self):
         return self.reader.ds3.read_float(self._y_addr)
+
+
+    @property
+    def pos(self):
+        return (self.x, self.z, self.y)
