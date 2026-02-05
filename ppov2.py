@@ -61,7 +61,7 @@ class DS3Env(gym.Env):
         # Reward for dealing damage to boss
         boss_damage = prev_boss_hp - self.boss.hp
         if boss_damage > 0:
-            reward += (boss_damage / self.boss.max_hp) * 3 # Reward for dealing damage
+            reward += (boss_damage / self.boss.max_hp) * 10 # Reward for dealing damage
         
         # Penalty for taking damage
         player_damage = prev_player_hp - self.player.hp
@@ -81,14 +81,9 @@ class DS3Env(gym.Env):
         # Large penalty for dying
         if self.player.hp <= 0:
             reward -= 1.5
-        
-        # Small detriment for being alive
-        # We want to force the agent to be more aggressive
-        reward -= 0.0005
-        
-        # Penalty for running out of stamina (encourages stamina management)
-        if self.player.sp < 10:
-            reward -= (10 - self.player.sp) * 0.005
+
+        # Probably only way to gain reward for dodging/strafing 
+        reward += 0.0005
         
         return reward
 
@@ -107,6 +102,7 @@ class DS3Env(gym.Env):
             time.sleep(0.5)
         elif a == 4:
             actions.forward_roll_dodge()
+            time.sleep(0.5)
         elif a == 5:
             actions.run_forward(duration)
         elif a == 6:
