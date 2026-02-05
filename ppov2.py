@@ -24,8 +24,8 @@ class DS3Env(gym.Env):
         self.step_count = 0
         self.max_steps = 10000
         
-        # Action space: 11 discrete actions
-        self.action_space = spaces.Discrete(11)
+        # Action space: 9 discrete actions
+        self.action_space = spaces.Discrete(9)
         
         # Observation space: normalized stats + frame
         # Stats: player_hp_ratio, player_sp_ratio, boss_hp_ratio, distance (placeholder)
@@ -107,18 +107,14 @@ class DS3Env(gym.Env):
             time.sleep(0.5)
         elif a == 4:
             actions.forward_roll_dodge()
-        elif a == 5:    
-            actions.shield(duration)
-        elif a == 6:
+        elif a == 5:
             actions.run_forward(duration)
-        elif a == 7:
+        elif a == 6:
             actions.run_back(duration)
-        elif a == 8:
+        elif a == 7:
             actions.run_right(duration)
-        elif a == 9:
+        elif a == 8:
             actions.run_left(duration)
-        elif a == 10:
-            actions.heal()
 
     def step(self, action):
         '''keep track of the step count, 

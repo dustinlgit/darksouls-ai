@@ -29,7 +29,7 @@ def train_ppo(
     print("Initializing PPO agent...")
     agent = PPOAgent(
         state_dim=4,
-        action_dim=11,
+        action_dim=9,
         lr=3e-4,
         gamma=0.99,
         eps_clip=0.2,
@@ -208,7 +208,7 @@ def test_agent(model_path, num_episodes=5):
     print(f"\nTesting agent from {model_path}...")
     
     env = DS3Env()
-    agent = PPOAgent(state_dim=4, action_dim=11)
+    agent = PPOAgent(state_dim=4, action_dim=9)
     agent.load(model_path)
     
     wins = 0
