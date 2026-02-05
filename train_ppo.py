@@ -9,6 +9,7 @@ from ppo_agent import PPOAgent
 import matplotlib.pyplot as plt
 from collections import deque
 import os
+from datetime import datetime
 # actions.change_potion() 
     #   !!!! either change potion to yellow manually before training, or run this ONCE only
 def train_ppo(
@@ -127,10 +128,10 @@ def train_ppo(
             
             # Save model
             if episode % save_frequency == 0 and episode > 0:
-                agent.save(f"{model_save_path}_ep{episode}.pth")
+                agent.save(f"{model_save_path}_ep{episode}_{datetime.now().strftime("%Y-%m-%d@%H:%M")}.pth")
                 if episode_reward > best_reward:
                     best_reward = episode_reward
-                    agent.save(f"{model_save_path}_best.pth")
+                    agent.save(f"{model_save_path}_best_{datetime.now().strftime("%Y-%m-%d@%H:%M")}.pth")
                     print(f"  Saved best model (reward: {best_reward:.2f})")
             
             # Early stopping if consistently winning
@@ -143,7 +144,7 @@ def train_ppo(
     
     finally:
         # Save final model
-        agent.save(f"{model_save_path}_final.pth")
+        agent.save(f"{model_save_path}_final_{datetime.now().strftime("%Y-%m-%d@%H:%M")}.pth")
         
         # Plot training curves
         plot_training_curves(episode_rewards, episode_lengths, episode_wins)
