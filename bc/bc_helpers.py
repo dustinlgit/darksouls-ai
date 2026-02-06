@@ -9,7 +9,7 @@ key_state = {
     "backward": False, #s
     "left": False, #a
     "right": False, #d
-    "dodge": False, #(space) or (w + space) (merge both dodges)
+    "dodge": False, #(space) or (w + space) (merged both dodges since every action is a vector)
     "attack": False, #right click
     "lock_on": False, #q
     "heal": False #r
@@ -48,7 +48,7 @@ def keyUp(key):
         if key == keyboard.Key.space:
             key_state["dodge"] = False
 
-ACTION_ORDER = ["attack","dodge","forward","backward","left","right","lock_on","heal"]
+ACTION_ORDER = ["attack","dodge","forward","backward","left","right","lock_on","heal"] #vector values
 def encode_action(ks):
      return [int(ks[k]) for k in ACTION_ORDER]
 
