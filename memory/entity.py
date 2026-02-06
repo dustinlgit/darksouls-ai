@@ -17,6 +17,8 @@ class Entity:
         self._x_addr = pos_addr + 0x70
         self._z_addr = pos_addr + 0x74
         self._y_addr = pos_addr + 0x78
+        
+        self._animation_addr = reader.follow_chain(addr, [0x80]) + 0xC8
 
 
     @property
@@ -67,3 +69,8 @@ class Entity:
     @property
     def pos(self):
         return (self.x, self.z, self.y)
+    
+
+    @property
+    def animation(self):
+        return self.reader.ds3.read_int(self._animation_addr)

@@ -6,11 +6,23 @@ import time
 import math
 
 from get_frame import get_one_frame
-from memory import DS3Reader, BOSSES
+from memory import DS3Reader, BOSSES, ANIMATIONS
 import actions
 
 class DS3Env(gym.Env):
     MAX_DIST = 12
+
+    # Animation codes for actions. Used to see if an action actually went through.
+    ACT_TO_ANI = {
+        1: ANIMATIONS.LIGHT_ATTACK,
+        2: ANIMATIONS.LIGHT_ATTACK,
+        3: ANIMATIONS.DODGE,
+        4: ANIMATIONS.ROLL,
+        5: ANIMATIONS.MOVE,
+        6: ANIMATIONS.MOVE,
+        7: ANIMATIONS.MOVE,
+        8: ANIMATIONS.MOVE
+    }
 
 
     def __init__(self):
@@ -27,7 +39,7 @@ class DS3Env(gym.Env):
         self.max_steps = 10000
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Dict({
-            'stats': spaces.Box(low=0, high=1, shape=(4,), dtype=np.float32),
+            'stats': spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32),
             'frame': spaces.Box(low=0, high=255, shape=(128, 128, 1), dtype=np.uint8)
         })
 
@@ -120,12 +132,24 @@ class DS3Env(gym.Env):
                 actions.run_left(duration)
         
 
-    def _get_observation(self):
+    def _get_observation(self, action):
         """Get current observation (stats + frame)"""
+        frame = get_one_frame()
         dist = math.dist(self.player.pos, self.boss.pos)
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
-        stats = np.array([self.player.norm_hp, self.player.norm_sp, self.boss.norm_hp, norm_dist], dtype=np.float32)
-        frame = get_one_frame()
+        action_success = self.player.animation in self.ACT_TO_ANI[action] or action == 0
+
+        stats = np.array(
+            [
+                self.player.norm_hp, 
+                self.player.norm_sp, 
+                self.boss.norm_hp,
+                norm_dist,
+                action_success
+            ], 
+            dtype=np.float32
+        )
+
 
         return {'stats': stats, 'frame': frame}
     

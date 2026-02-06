@@ -5,7 +5,7 @@ from stable_baselines3.common.monitor import Monitor
 
 import torch
 
-from ppov3 import DS3Env
+from ppov2 import DS3Env
 
 env = DS3Env()
 env = Monitor(env)
