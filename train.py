@@ -5,6 +5,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 
 import torch
 
+from datetime import datetime
 from ppov2 import DS3Env
 
 env = DS3Env()
@@ -36,4 +37,9 @@ model = PPO(
     tensorboard_log="./ppo_ds3_logs"
 )
 
-model.learn(10_000, callback=checkpoint)
+try:
+    print("Begin training")
+    model.learn(10_000, callback=checkpoint)
+except KeyboardInterrupt:
+    print("Training cancelled...")
+    model.save(f"./models/{datetime.now().strftime('%Y-%m-%d@%H:%M')}")
