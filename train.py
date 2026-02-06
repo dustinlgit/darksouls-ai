@@ -1,7 +1,7 @@
 from stable_baselines3 import PPO
-from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.callbacks import CheckpointCallback
 
 import torch
 
@@ -21,6 +21,11 @@ policy_kwargs = {
     "activation_fn": torch.nn.ReLU
 }
 
+checkpoint = CheckpointCallback(
+    save_freq=4096,
+    save_path="./models",
+)
+ 
 model = PPO(
     "MultiInputPolicy", 
     env, 
@@ -31,4 +36,4 @@ model = PPO(
     tensorboard_log="./ppo_ds3_logs"
 )
 
-model.learn(total_timesteps=100_000)
+model.learn(10_000, callback=checkpoint)

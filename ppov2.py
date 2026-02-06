@@ -52,7 +52,7 @@ class DS3Env(gym.Env):
         print("Performed action: ", action)
 
         self.do_action(action)
-        obs = self._get_observation()
+        obs = self._get_observation(action)
         reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp)
         terminated = self.player.hp <= 0 or self.boss.hp <= 0
         truncated = self.step_count >= self.max_steps
@@ -98,7 +98,7 @@ class DS3Env(gym.Env):
         
         print(f"Reset complete")
 
-        obs = self._get_observation()
+        obs = self._get_observation(action=0)
         info = {
             "player_hp": self.player.hp,
             "boss_hp": self.boss.hp
@@ -161,12 +161,12 @@ class DS3Env(gym.Env):
         # Reward for dealing damage to boss
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
         if boss_damage > 0:
-            reward += boss_damage * 20 # Reward for dealing damage
+            reward += boss_damage * 5 
         
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
-            reward -= player_damage * 0.5  # Penalty for taking damage
+            reward -= player_damage * 0.5 
 
         # Add penalty for being too far away; ~3 units is the
         #  attack range so little more leeway before penalty
@@ -183,8 +183,8 @@ class DS3Env(gym.Env):
         if self.player.hp <= 0:
             reward -= 1
 
-        # Probably only way to gain reward for dodging/strafing 
-        reward += 0.0005
+        if self.player.stam <= 0:
+            reward -= 0.01
         
         return reward
 
