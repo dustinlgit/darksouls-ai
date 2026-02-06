@@ -45,6 +45,7 @@ class DS3Env(gym.Env):
 
 
     def step(self, action):
+        start = time.perf_counter()
         prev_player_norm_hp = self.player.norm_hp
         prev_boss_norm_hp = self.boss.norm_hp
         
@@ -63,6 +64,8 @@ class DS3Env(gym.Env):
             'player_hp': self.player.hp,
             'boss_hp': self.boss.hp,
         }
+
+        print(time.perf_counter() - start)
         
         return obs, reward, terminated, truncated, info
     
@@ -73,6 +76,8 @@ class DS3Env(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+
+        actions.keep_ds3_alive()
         
         # Release all keys first to ensure clean state
         actions.release_all_keys()
@@ -137,7 +142,7 @@ class DS3Env(gym.Env):
         frame = get_one_frame()
         dist = math.dist(self.player.pos, self.boss.pos)
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
-        action_success = self.player.animation in self.ACT_TO_ANI[action] or action == 0
+        action_success = action == 0 or self.player.animation in self.ACT_TO_ANI[action]
 
         stats = np.array(
             [
@@ -161,7 +166,7 @@ class DS3Env(gym.Env):
         # Reward for dealing damage to boss
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
         if boss_damage > 0:
-            reward += boss_damage * 5 
+            reward += boss_damage * 2 
         
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
@@ -181,9 +186,9 @@ class DS3Env(gym.Env):
         
         # Large penalty for dying
         if self.player.hp <= 0:
-            reward -= 1
+            reward -= 2
 
-        if self.player.stam <= 0:
+        if self.player.sp <= 0:
             reward -= 0.01
         
         return reward
