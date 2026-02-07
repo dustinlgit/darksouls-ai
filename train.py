@@ -39,7 +39,7 @@ model = PPO(
 
 try:
     print("Begin training")
-    model.learn(10_000, callback=checkpoint)
+    model.learn(1_000_000, callback=checkpoint)
 except KeyboardInterrupt:
     print("Training cancelled...")
     model.save(f"./models/{datetime.now().strftime('%Y-%m-%d@%H:%M')}")

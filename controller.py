@@ -29,6 +29,7 @@ def right_hand_light_attack():
 def forward_run_attack():
     # Tilt stick forward + RB
     gamepad.left_joystick_float(x_value_float=0.0, y_value_float=1.0)
+    gamepad.update()
     gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER)
     gamepad.update()
     time.sleep(0.1)

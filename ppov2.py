@@ -7,7 +7,7 @@ import math
 
 from get_frame import get_one_frame
 from memory import DS3Reader, BOSSES, ANIMATIONS
-import actions
+import controller
 
 class DS3Env(gym.Env):
     MAX_DIST = 12
@@ -37,7 +37,7 @@ class DS3Env(gym.Env):
 
         self.step_count = 0
         self.max_steps = 10000
-        self.action_space = spaces.Discrete(9)
+        self.action_space = spaces.Discrete(8)
         self.observation_space = spaces.Dict({
             'stats': spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32),
             'frame': spaces.Box(low=0, high=255, shape=(128, 128, 1), dtype=np.uint8)
@@ -45,7 +45,6 @@ class DS3Env(gym.Env):
 
 
     def step(self, action):
-        start = time.perf_counter()
         prev_player_norm_hp = self.player.norm_hp
         prev_boss_norm_hp = self.boss.norm_hp
         
@@ -65,8 +64,6 @@ class DS3Env(gym.Env):
             'boss_hp': self.boss.hp,
         }
 
-        print(time.perf_counter() - start)
-        
         return obs, reward, terminated, truncated, info
     
 
@@ -77,26 +74,26 @@ class DS3Env(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
-        actions.keep_ds3_alive()
+        controller.keep_ds3_alive()
         
         # Release all keys first to ensure clean state
-        actions.release_all_keys()
+        controller.release_all_keys()
         time.sleep(1)
         
         if self.boss and self.boss.hp <= 0:
             print("Boss dead, resetting arena (15 seconds)...")
             time.sleep(15)
-            actions.boss_died_reset()
+            controller.boss_died_reset()
             time.sleep(10)
         
         else:
-            print("Waiting for respawn (12 seconds)...")
-            time.sleep(12)
+            print("Waiting for respawn (18 seconds)...")
+            time.sleep(18)
 
         self._reset_mem()
         
         print("Walking to boss...")
-        actions.walk_to_boss()
+        controller.walk_to_boss()
         
         self.step_count = 0
         self.boss_defeated = False
@@ -120,21 +117,19 @@ class DS3Env(gym.Env):
                 # No acation
                 time.sleep(duration)
             case 1:
-                actions.right_hand_light_attack()
+                controller.right_hand_light_attack()
             case 2:
-                actions.forward_run_attack()
+                controller.dodge()
             case 3:
-                actions.dodge()
+                controller.forward_roll_dodge()
             case 4:
-                actions.forward_roll_dodge()
+                controller.run_forward(duration)
             case 5:
-                actions.run_forward(duration)
+                controller.run_back(duration)
             case 6:
-                actions.run_back(duration)
+                controller.run_right(duration)
             case 7:
-                actions.run_right(duration)
-            case 8:
-                actions.run_left(duration)
+                controller.run_left(duration)
         
 
     def _get_observation(self, action):
