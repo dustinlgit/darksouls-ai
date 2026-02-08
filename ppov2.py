@@ -21,7 +21,8 @@ class DS3Env(gym.Env):
         5: ANIMATIONS.MOVE,
         6: ANIMATIONS.MOVE,
         7: ANIMATIONS.MOVE,
-        8: ANIMATIONS.MOVE
+        8: ANIMATIONS.MOVE,
+        9: ANIMATIONS.HEAL
     }
 
 
@@ -37,12 +38,13 @@ class DS3Env(gym.Env):
 
         self.step_count = 0
         self.max_steps = 10000
-        self.action_space = spaces.Discrete(8)
+        self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Dict({
             'stats': spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32),
             'frame': spaces.Box(low=0, high=255, shape=(128, 128, 1), dtype=np.uint8)
         })
 
+        self.heal_count = 0
 
     def step(self, action):
         prev_player_norm_hp = self.player.norm_hp
@@ -53,7 +55,7 @@ class DS3Env(gym.Env):
 
         self.do_action(action)
         obs = self._get_observation(action)
-        reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp)
+        reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action)
         terminated = self.player.hp <= 0 or self.boss.hp <= 0
         truncated = self.step_count >= self.max_steps
 
@@ -88,7 +90,7 @@ class DS3Env(gym.Env):
         
         else:
             print("Waiting for respawn (18 seconds)...")
-            time.sleep(18)
+            time.sleep(25)
 
         self._reset_mem()
         
@@ -130,6 +132,8 @@ class DS3Env(gym.Env):
                 controller.run_right(duration)
             case 7:
                 controller.run_left(duration)
+            case 8:
+                controller.heal()
         
 
     def _get_observation(self, action):
@@ -154,7 +158,7 @@ class DS3Env(gym.Env):
         return {'stats': stats, 'frame': frame}
     
 
-    def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp):
+    def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
         """Calculate reward based on state changes"""
         reward = 0.0
         
@@ -185,11 +189,31 @@ class DS3Env(gym.Env):
 
         if self.player.sp <= 0:
             reward -= 0.01
+
+        #very small reward for survival (anti-suicide 0.0)
+        if self.player.hp > 0:
+            reward += 0.005
         
+        if(action == 8):
+            # penalty for wasting flask when hp is high
+            HEAL_AMT = 250 #how much hp you get for healing
+            missing_hp = max(0.0, float(self.player.max_hp)) - float(self.player.hp)
+            wasted_flask = max(0.0, HEAL_AMT - missing_hp)
+            norm_wasted_flask = min(1.0, wasted_flask / HEAL_AMT)
+            reward -= 0.3 * norm_wasted_flask
+
+            # reward for strategic healing (100 missing hp / 454) * (1 - (200/250)) -> when the wasted is less reward goes up!!!
+            reward += 0.3 * (missing_hp / self.player.max_hp) * (1.0 - norm_wasted_flask)
+                
+            # big penalty if healed 3+ times in the episode
+            self.heal_count+=1
+            if self.heal_count > 3:
+                reward -= 0.3 * (self.heal_count - 3) #4-3 -> neg 0.3 reward originally
         return reward
 
 
     def _reset_mem(self):
         self.ds3.initialize()
+        self.heal_count = 0
         self.player = self.ds3.player
         self.boss = self.ds3.boss

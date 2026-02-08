@@ -62,7 +62,7 @@ class PPOAgent:
     def __init__(
         self,
         state_dim=4,  # stats dimension
-        action_dim=9,
+        action_dim=10,
         lr=3e-4,
         gamma=0.99,
         eps_clip=0.2,

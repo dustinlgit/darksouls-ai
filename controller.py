@@ -89,6 +89,13 @@ def run_left(sec):
     gamepad.reset()
     gamepad.update()
 
+def heal():
+    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
+    gamepad.update()
+    time.sleep(0.08)
+    gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
+    gamepad.update()
+
 def walk_to_boss():
     release_all_keys()
     # Run forward
@@ -109,3 +116,13 @@ def walk_to_boss():
     time.sleep(0.1)
     gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
     gamepad.update()
+
+    def boss_died_reset():
+        release_all_keys()
+        for _ in range(4):
+            gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
+            gamepad.update()
+            time.sleep(0.1)
+            gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
+            gamepad.update()
+            time.sleep(1.0)
