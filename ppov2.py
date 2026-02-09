@@ -63,6 +63,7 @@ class DS3Env(gym.Env):
             'boss_hp': self.boss.hp,
             'is_success': bool(self.boss.hp <= 0 and self.player.hp > 0)
         }
+        
         #self.ds3.ds3.write_int(self.boss._hp_addr, 0)
         return obs, reward, terminated, truncated, info
     
