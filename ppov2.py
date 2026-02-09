@@ -7,7 +7,7 @@ import math
 
 from get_frame import get_one_frame
 from memory import DS3Reader, BOSSES, ANIMATIONS
-import controller
+import movement.controller as controller
 
 class DS3Env(gym.Env):
     MAX_DIST = 12
@@ -64,6 +64,7 @@ class DS3Env(gym.Env):
         info = {
             'player_hp': self.player.hp,
             'boss_hp': self.boss.hp,
+            'is_success': bool(self.boss.hp <= 0 and self.player.hp > 0)
         }
 
         return obs, reward, terminated, truncated, info
@@ -165,19 +166,23 @@ class DS3Env(gym.Env):
         # Reward for dealing damage to boss
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
         if boss_damage > 0:
-            reward += boss_damage * 2 
+            reward += boss_damage * 3 #increased
         
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
-            reward -= player_damage * 0.5 
+            reward -= player_damage * 2 #increased
 
         # Add penalty for being too far away; ~3 units is the
         #  attack range so little more leeway before penalty
         dist_to_boss = math.dist(self.player.pos, self.boss.pos)
         norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
         if norm_dist > 0.5:
-            reward -= norm_dist * 0.01
+            reward -= 0.05 * (norm_dist - 0.50) / 0.50 #larger penalty for being farther away vs close
+
+        #add reward for being close to fight
+        if norm_dist < 0.35:
+            reward += 0.002
         
         # Large reward for killing boss
         if self.boss.hp <= 0:
@@ -190,9 +195,9 @@ class DS3Env(gym.Env):
         if self.player.sp <= 0:
             reward -= 0.01
 
-        #very small reward for survival (anti-suicide 0.0)
-        if self.player.hp > 0:
-            reward += 0.005
+        
+        #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
+        reward -= 0.005
         
         if(action == 8):
             # penalty for wasting flask when hp is high
@@ -200,15 +205,19 @@ class DS3Env(gym.Env):
             missing_hp = max(0.0, float(self.player.max_hp)) - float(self.player.hp)
             wasted_flask = max(0.0, HEAL_AMT - missing_hp)
             norm_wasted_flask = min(1.0, wasted_flask / HEAL_AMT)
-            reward -= 0.3 * norm_wasted_flask
 
-            # reward for strategic healing (100 missing hp / 454) * (1 - (200/250)) -> when the wasted is less reward goes up!!!
-            reward += 0.3 * (missing_hp / self.player.max_hp) * (1.0 - norm_wasted_flask)
-                
-            # big penalty if healed 3+ times in the episode
+            hp_frac = float(self.player.hp) / float(self.player.max_hp)
+            #penalty for healing with high hp
+            if hp_frac > 0.65 : #since health potion is roughly half of the players hp
+                reward -= 0.5
+            #reward healing at low health
+            if hp_frac <= 0.45: #perfect percent for none wasted ...
+                reward += 0.5 * (1.0 - norm_wasted_flask)
+            
+            # penalty if healed 3+ times in the episode
             self.heal_count+=1
             if self.heal_count > 3:
-                reward -= 0.3 * (self.heal_count - 3) #4-3 -> neg 0.3 reward originally
+                reward -= 0.1 * (self.heal_count - 3) #lowered penalty
         return reward
 
 
