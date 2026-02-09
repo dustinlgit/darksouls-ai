@@ -44,8 +44,11 @@ model = PPO(
     device="cuda",
     tensorboard_log="./ppo_ds3_logs"
 )
+
+eval_env = DummyVecEnv([make_env])
+eval_env = VecFrameStack(eval_env, n_stack=4, channels_order="last")
 eval_cb = EvalCallback(
-    env,
+    eval_env,
     best_model_save_path="./models/best_eval",
     log_path="./models/eval_logs",
     eval_freq=10_000,
@@ -61,7 +64,7 @@ class winRate(BaseCallback):
         self.check_freq = check_freq
         self.save_path = save_path
         self.win_buffer = deque(maxlen=window_size)
-        self.best_win_rate = -1.0
+        self.best_win_rate = 0.0
         os.makedirs(save_path, exist_ok=True)
 
     def _on_step(self) -> bool:
@@ -77,6 +80,7 @@ class winRate(BaseCallback):
         # periodically evaluate win rate
         if self.n_calls % self.check_freq == 0 and len(self.win_buffer) > 0:
             win_rate = float(np.mean(self.win_buffer))
+            self.logger.record("rollout/win_rate_window", win_rate)
             self.logger.record("rollout/best_win_rate", self.best_win_rate)
 
             if win_rate > self.best_win_rate:
@@ -89,6 +93,15 @@ class winRate(BaseCallback):
         return True
 
 try:
+    # test_env = make_env()
+    # print("SMOKE: about to reset()")
+    # obs = test_env.reset()
+    # print("SMOKE: reset ok")
+
+    # print("SMOKE: about to step()")
+    # obs, reward, done, info = test_env.step(test_env.action_space.sample())
+    # print("SMOKE: step ok", "reward:", reward, "done:", done, "info:", info if isinstance(info, dict) else type(info))
+    # test_env.close()
     print("Begin training")
     win_cb = winRate(window_size=100)
 

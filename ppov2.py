@@ -63,7 +63,7 @@ class DS3Env(gym.Env):
             'boss_hp': self.boss.hp,
             'is_success': bool(self.boss.hp <= 0 and self.player.hp > 0)
         }
-        self.ds3.ds3.write_int(self.boss._hp_addr, 0)
+        #self.ds3.ds3.write_int(self.boss._hp_addr, 0)
         return obs, reward, terminated, truncated, info
     
 
@@ -73,7 +73,6 @@ class DS3Env(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        boss_died = self.boss and self.boss.hp <= 0
 
         controller.keep_ds3_alive()
         
@@ -81,14 +80,16 @@ class DS3Env(gym.Env):
         controller.release_all_keys()
         time.sleep(1)
         
-        if boss_died:
-            self._wait_until_teleported()
-            self._wait_until_loaded()
+        if self.boss and self.boss.hp <= 0:
+            print("Boss dead, resetting arena (15 seconds)...")
+            time.sleep(15)
             controller.boss_died_reset()
-            time.sleep(2)
+            time.sleep(10)
         
-        self._wait_until_loaded()
-        print("Player loaded in...")
+        else:
+            print("Waiting for respawn (25 seconds)...")
+            time.sleep(25)
+
         self._reset_mem()
         
         print("Walking to boss...")
