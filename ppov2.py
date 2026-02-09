@@ -7,7 +7,7 @@ import math
 
 from get_frame import get_one_frame
 from memory import DS3Reader, BOSSES, ANIMATIONS
-import movement.controller as controller
+import controller
 
 class DS3Env(gym.Env):
     MAX_DIST = 12
@@ -50,9 +50,6 @@ class DS3Env(gym.Env):
         prev_player_norm_hp = self.player.norm_hp
         prev_boss_norm_hp = self.boss.norm_hp
         
-
-        print("Performed action: ", action)
-
         self.do_action(action)
         obs = self._get_observation(action)
         reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action)
@@ -66,7 +63,7 @@ class DS3Env(gym.Env):
             'boss_hp': self.boss.hp,
             'is_success': bool(self.boss.hp <= 0 and self.player.hp > 0)
         }
-
+        self.ds3.ds3.write_int(self.boss._hp_addr, 0)
         return obs, reward, terminated, truncated, info
     
 
@@ -76,6 +73,7 @@ class DS3Env(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+        boss_died = self.boss and self.boss.hp <= 0
 
         controller.keep_ds3_alive()
         
@@ -83,16 +81,14 @@ class DS3Env(gym.Env):
         controller.release_all_keys()
         time.sleep(1)
         
-        if self.boss and self.boss.hp <= 0:
-            print("Boss dead, resetting arena (15 seconds)...")
-            time.sleep(15)
+        if boss_died:
+            self._wait_until_teleported()
+            self._wait_until_loaded()
             controller.boss_died_reset()
-            time.sleep(10)
+            time.sleep(2)
         
-        else:
-            print("Waiting for respawn (18 seconds)...")
-            time.sleep(25)
-
+        self._wait_until_loaded()
+        print("Player loaded in...")
         self._reset_mem()
         
         print("Walking to boss...")
@@ -226,3 +222,24 @@ class DS3Env(gym.Env):
         self.heal_count = 0
         self.player = self.ds3.player
         self.boss = self.ds3.boss
+
+
+    def _wait_until_teleported(self):
+        try:
+            while self.player.y < 600:
+                self.ds3.initialize()
+        except Exception:
+            ...
+        time.sleep(5)
+
+
+    def _wait_until_loaded(self):
+        while True:
+            try:
+                self.ds3.initialize()
+                if self.ds3.player.animation in ANIMATIONS.IDLE:
+                    break
+            except Exception:
+                ...
+
+        time.sleep(1.5)
