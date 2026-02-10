@@ -2,7 +2,13 @@ import vgamepad as vg
 import time
 import win32gui
 import win32con
-
+def heal():
+    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
+    gamepad.update()
+    time.sleep(0.08)
+    gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
+    gamepad.update()
+    
 def keep_ds3_alive():
     hwnd = win32gui.FindWindow(None, "DARK SOULS III")
     if hwnd:

@@ -73,7 +73,6 @@ class DS3Env(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        boss_died = self.boss and self.boss.hp <= 0
 
         controller.keep_ds3_alive()
         
@@ -81,14 +80,13 @@ class DS3Env(gym.Env):
         controller.release_all_keys()
         time.sleep(1)
         
-        if boss_died:
+        if self.boss and self.boss.hp <= 0:
             self._wait_until_teleported()
             self._wait_until_loaded()
             controller.boss_died_reset()
-            time.sleep(2)
+            time.sleep(10)
         
         self._wait_until_loaded()
-        print("Player loaded in...")
         self._reset_mem()
         
         print("Walking to boss...")
