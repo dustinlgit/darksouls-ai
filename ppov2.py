@@ -37,8 +37,8 @@ class DS3Env(gym.Env):
             raise RuntimeError("Memory reader could not be initialized. Dark Souls III Is probably not open. Error: ", e)
 
         self.step_count = 0
-        self.max_steps = 10000
-        self.action_space = spaces.Discrete(9)
+        self.max_steps = 100_000
+        self.action_space = spaces.Discrete(8)
         self.observation_space = spaces.Dict({
             'stats': spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32),
             'frame': spaces.Box(low=0, high=255, shape=(128, 128, 1), dtype=np.uint8)
@@ -63,7 +63,7 @@ class DS3Env(gym.Env):
             'boss_hp': self.boss.hp,
             'is_success': bool(self.boss.hp <= 0 and self.player.hp > 0)
         }
-        
+
         return obs, reward, terminated, truncated, info
     
 
@@ -201,7 +201,7 @@ class DS3Env(gym.Env):
         try:
             while self.player.y < 600:
                 self.ds3.initialize()
-        except Exception:
+        except Exception as _:
             ...
         time.sleep(5)
 
@@ -212,7 +212,7 @@ class DS3Env(gym.Env):
                 self.ds3.initialize()
                 if self.ds3.player.animation in ANIMATIONS.IDLE:
                     break
-            except Exception:
+            except Exception as _:
                 ...
 
         time.sleep(1.5)

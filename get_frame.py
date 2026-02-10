@@ -19,7 +19,6 @@ def get_one_frame_fullscreen():
 def get_ds_window():
     hwnd = win32gui.FindWindow(None, "DARK SOULS III")
     if hwnd:
-        print("Dark Souls Window Found.")
         return hwnd
     else:
         print("Dark Souls Window not Found.")
