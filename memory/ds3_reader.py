@@ -90,9 +90,8 @@ class DS3Reader:
                     print(hex(ptr))
 
             except Exception as e:
-                print("Error handling memory offsets. Most likely harmless but a pointer chain did fail.")
-
                 if self.debug:
+                    print("Error handling memory offsets. Most likely harmless but a pointer chain did fail.")
                     print(e)
 
         return ptr
