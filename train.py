@@ -1,14 +1,15 @@
-import os
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.callbacks import EvalCallback
+
 from collections import deque
 import numpy as np
-
 import torch
+import os
+import argparse
 
 from datetime import datetime
 from ppov2 import DS3Env
@@ -17,6 +18,12 @@ def make_env():
     env = DS3Env()
     env = Monitor(env)
     return env
+
+parser = argparse.ArgumentParser(description="DS3 Agent Trainer")
+parser.add_argument("--steps", type=int, default=100_000)
+parser.add_argument("--load", type=str, help="Provide a path to the model")
+args = parser.parse_args()
+
 
 env = DummyVecEnv([make_env])
 env = VecFrameStack(env, n_stack=4, channels_order="last")
@@ -34,16 +41,19 @@ checkpoint = CheckpointCallback(
     save_freq=4096,
     save_path="./models",
 )
- 
-model = PPO(
-    "MultiInputPolicy", 
-    env, 
-    policy_kwargs=policy_kwargs,
-    verbose=1, 
-    n_steps=1024,
-    device="cuda",
-    tensorboard_log="./ppo_ds3_logs"
-)
+
+if args.load:
+    model = PPO.load(args.load, env=env)
+else: 
+    model = PPO(
+        "MultiInputPolicy", 
+        env, 
+        policy_kwargs=policy_kwargs,
+        verbose=1, 
+        n_steps=1024,
+        device="cuda",
+        tensorboard_log="./ppo_ds3_logs"
+    )
 
 eval_env = DummyVecEnv([make_env])
 eval_env = VecFrameStack(eval_env, n_stack=4, channels_order="last")
@@ -93,19 +103,10 @@ class winRate(BaseCallback):
         return True
 
 try:
-    # test_env = make_env()
-    # print("SMOKE: about to reset()")
-    # obs = test_env.reset()
-    # print("SMOKE: reset ok")
-
-    # print("SMOKE: about to step()")
-    # obs, reward, done, info = test_env.step(test_env.action_space.sample())
-    # print("SMOKE: step ok", "reward:", reward, "done:", done, "info:", info if isinstance(info, dict) else type(info))
-    # test_env.close()
     print("Begin training")
     win_cb = winRate(window_size=100)
 
-    model.learn(1_000_000, callback=[checkpoint, eval_cb, win_cb])
+    model.learn(args.steps, callback=[checkpoint, eval_cb, win_cb])
 except KeyboardInterrupt:
     print("Training cancelled...")
     model.save(f"./models/{datetime.now().strftime('%Y-%m-%d@%H:%M')}")

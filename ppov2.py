@@ -82,15 +82,12 @@ class DS3Env(gym.Env):
         time.sleep(1)
         
         if self.boss and self.boss.hp <= 0:
-            print("Boss dead, resetting arena (15 seconds)...")
-            time.sleep(15)
+            self._wait_until_teleported()
+            self._wait_until_loaded()
             controller.boss_died_reset()
             time.sleep(10)
         
-        else:
-            print("Waiting for respawn (25 seconds)...")
-            time.sleep(25)
-
+        self._wait_until_loaded()
         self._reset_mem()
         
         print("Walking to boss...")
