@@ -4,6 +4,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.vec_env import VecFrameStack, VecTransposeImage
 
 from collections import deque
 import numpy as np
@@ -27,7 +28,7 @@ args = parser.parse_args()
 
 env = DummyVecEnv([make_env])
 env = VecFrameStack(env, n_stack=4, channels_order="last")
-
+env = VecTransposeImage(env)
 
 policy_kwargs = {
     "net_arch": {
@@ -57,6 +58,7 @@ else:
 
 eval_env = DummyVecEnv([make_env])
 eval_env = VecFrameStack(eval_env, n_stack=4, channels_order="last")
+eval_env = VecTransposeImage(eval_env)
 eval_cb = EvalCallback(
     eval_env,
     best_model_save_path="./models/best_eval",
