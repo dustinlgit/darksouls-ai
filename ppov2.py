@@ -38,7 +38,7 @@ class DS3Env(gym.Env):
 
         self.step_count = 0
         self.max_steps = 100_000
-        self.action_space = spaces.Discrete(8)
+        self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Dict({
             'stats': spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32),
             'frame': spaces.Box(low=0, high=255, shape=(128, 128, 1), dtype=np.uint8)
@@ -165,7 +165,11 @@ class DS3Env(gym.Env):
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
-            reward -= player_damage * 0.5 
+            reward -= player_damage * 1.25
+
+        healed = self.player.hp - prev_player_norm_hp 
+        if healed > 0:
+            reward += healed * 1.25
 
         # Add penalty for being too far away; ~3 units is the
         #  attack range so little more leeway before penalty
@@ -180,10 +184,10 @@ class DS3Env(gym.Env):
         
         # Large penalty for dying
         if self.player.hp <= 0:
-            reward -= 2
+            reward -= 4
 
-        if self.player.sp <= 0:
-            reward -= 0.01
+        if self.player.sp <= 15:
+            reward -= 0.05
         
         return reward
 
@@ -199,7 +203,7 @@ class DS3Env(gym.Env):
         try:
             while self.player.y < 600:
                 self.ds3.initialize()
-        except Exception as _:
+        except Exception:
             ...
         time.sleep(5)
 
@@ -210,7 +214,7 @@ class DS3Env(gym.Env):
                 self.ds3.initialize()
                 if self.ds3.player.animation in ANIMATIONS.IDLE:
                     break
-            except Exception as _:
+            except Exception:
                 ...
 
         time.sleep(1.5)

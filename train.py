@@ -1,9 +1,8 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.callbacks import CheckpointCallback
-from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, EvalCallback
+from stable_baselines3.common.utils import LinearSchedule
 
 from collections import deque
 import numpy as np
@@ -20,7 +19,7 @@ def make_env():
     return env
 
 parser = argparse.ArgumentParser(description="DS3 Agent Trainer")
-parser.add_argument("--steps", type=int, default=100_000)
+parser.add_argument("--steps", type=int, default=1_000_000)
 parser.add_argument("--load", type=str, help="Provide a path to the model")
 args = parser.parse_args()
 
@@ -50,7 +49,8 @@ else:
         env, 
         policy_kwargs=policy_kwargs,
         verbose=1, 
-        n_steps=1024,
+        learning_rate=LinearSchedule(2.5e4, 0, 1.0),
+        ent_coef = 0.001,
         device="cuda",
         tensorboard_log="./ppo_ds3_logs"
     )
