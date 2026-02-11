@@ -4,6 +4,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.callbacks import CallbackList
 
 from collections import deque
 import numpy as np
@@ -31,8 +32,8 @@ env = VecFrameStack(env, n_stack=4, channels_order="last")
 
 policy_kwargs = {
     "net_arch": {
-        "pi": [128, 128],
-        "vf": [128, 128]
+        "pi": [256, 256, 128],  # Larger actor network for better policy
+        "vf": [256, 256, 128]   # Larger critic network for better value estimation
     },
     "activation_fn": torch.nn.ReLU
 }
@@ -50,7 +51,16 @@ else:
         env, 
         policy_kwargs=policy_kwargs,
         verbose=1, 
-        n_steps=1024,
+        n_steps=2048,  # Increased from 1024 for more stable updates
+        batch_size=64,  # Explicit batch size
+        n_epochs=10,  # Number of optimization epochs per update
+        learning_rate=3e-4,  # Learning rate
+        gamma=0.995,  # Slightly higher discount (0.99 -> 0.995) for longer-term planning
+        gae_lambda=0.95,  # GAE lambda for advantage estimation
+        clip_range=0.2,  # PPO clip range
+        ent_coef=0.01,  # Entropy coefficient for exploration
+        vf_coef=0.5,  # Value function coefficient
+        max_grad_norm=0.5,  # Gradient clipping
         device="cuda",
         tensorboard_log="./ppo_ds3_logs"
     )
@@ -102,11 +112,36 @@ class winRate(BaseCallback):
 
         return True
 
+class LearningRateSchedule(BaseCallback):
+    """Learning rate schedule that decreases LR over time"""
+    def __init__(self, initial_lr=3e-4, final_lr=1e-5, total_steps=100_000, verbose=0):
+        super().__init__(verbose)
+        self.initial_lr = initial_lr
+        self.final_lr = final_lr
+        self.total_steps = total_steps
+        
+    def _on_step(self) -> bool:
+        # Linear decay schedule
+        progress = min(1.0, self.num_timesteps / self.total_steps)
+        current_lr = self.initial_lr * (1 - progress) + self.final_lr * progress
+        
+        # Update learning rate
+        if hasattr(self.model, 'lr_schedule'):
+            self.model.lr_schedule = lambda _: current_lr
+        elif hasattr(self.model, 'policy') and hasattr(self.model.policy.optimizer, 'param_groups'):
+            for param_group in self.model.policy.optimizer.param_groups:
+                param_group['lr'] = current_lr
+        
+        self.logger.record("train/learning_rate", current_lr)
+        return True
+
 try:
     print("Begin training")
     win_cb = winRate(window_size=100)
-
-    model.learn(args.steps, callback=[checkpoint, eval_cb, win_cb])
+    lr_schedule = LearningRateSchedule(initial_lr=3e-4, final_lr=1e-5, total_steps=args.steps)
+    
+    callbacks = CallbackList([checkpoint, eval_cb, win_cb, lr_schedule])
+    model.learn(args.steps, callback=callbacks)
 except KeyboardInterrupt:
     print("Training cancelled...")
     model.save(f"./models/{datetime.now().strftime('%Y-%m-%d@%H:%M')}")

@@ -137,7 +137,13 @@ class DS3Env(gym.Env):
         frame = get_one_frame()
         dist = math.dist(self.player.pos, self.boss.pos)
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
-        action_success = action == 0 or self.player.animation in self.ACT_TO_ANI[action]
+        # Check if action was successful (action 0 is always "successful" as it's no action)
+        if action == 0:
+            action_success = True
+        elif action in self.ACT_TO_ANI:
+            action_success = self.player.animation in self.ACT_TO_ANI[action]
+        else:
+            action_success = False
 
         stats = np.array(
             [
@@ -155,45 +161,62 @@ class DS3Env(gym.Env):
     
 
     def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
-        """Calculate reward based on state changes"""
+        """Calculate reward based on state changes - Optimized for boss killing"""
         reward = 0.0
         
-        # Reward for dealing damage to boss
+        # Reward for dealing damage to boss (increased weight for consistency)
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
         if boss_damage > 0:
-            reward += boss_damage * 3 #increased
+            # Scale reward by boss HP remaining (more valuable to finish off boss)
+            boss_hp_remaining = self.boss.norm_hp
+            damage_multiplier = 4.0 + (1.0 - boss_hp_remaining) * 2.0  # 4x to 6x scaling
+            reward += boss_damage * damage_multiplier
         
-        # Penalty for taking damage
+        # Penalty for taking damage (increased to emphasize survival)
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
-            reward -= player_damage * 2 #increased
+            # Scale penalty by player HP (worse to take damage when low)
+            hp_frac = self.player.norm_hp
+            damage_penalty = 3.0 + (1.0 - hp_frac) * 2.0  # 3x to 5x scaling
+            reward -= player_damage * damage_penalty
 
-        # Add penalty for being too far away; ~3 units is the
-        #  attack range so little more leeway before penalty
+        # Distance-based rewards (optimized for combat range)
         dist_to_boss = math.dist(self.player.pos, self.boss.pos)
         norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
-        if norm_dist > 0.5:
-            reward -= 0.05 * (norm_dist - 0.50) / 0.50 #larger penalty for being farther away vs close
-
-        #add reward for being close to fight
-        if norm_dist < 0.35:
-            reward += 0.002
         
-        # Large reward for killing boss
+        # Optimal combat range is 0.25-0.4 (close enough to attack, far enough to dodge)
+        if 0.25 <= norm_dist <= 0.4:
+            reward += 0.01  # Reward for being in optimal range
+        elif norm_dist > 0.5:
+            # Stronger penalty for being too far (can't attack effectively)
+            reward -= 0.1 * (norm_dist - 0.5) / 0.5
+        elif norm_dist < 0.2:
+            # Small penalty for being too close (harder to dodge)
+            reward -= 0.05 * (0.2 - norm_dist) / 0.2
+        
+        # Large reward for killing boss (increased for better signal)
         if self.boss.hp <= 0:
-            reward += 10
+            reward += 20.0  # Increased from 10 to 20
         
-        # Large penalty for dying
+        # Large penalty for dying (increased to emphasize survival)
         if self.player.hp <= 0:
-            reward -= 2
+            reward -= 10.0  # Increased from 2 to 10
 
+        # Stamina management (small penalty for running out)
         if self.player.sp <= 0:
-            reward -= 0.01
+            reward -= 0.02
 
+        # Small survival bonus (encourages staying alive longer)
+        if self.player.hp > 0:
+            reward += 0.001
         
-        #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
-        reward -= 0.005
+        # Reward for successful actions (encourages action efficiency)
+        if action in self.ACT_TO_ANI:
+            action_success = self.player.animation in self.ACT_TO_ANI[action]
+            if action_success:
+                reward += 0.005
         
+        # Healing logic (optimized)
         if(action == 8):
             # penalty for wasting flask when hp is high
             HEAL_AMT = 250 #how much hp you get for healing
@@ -213,6 +236,10 @@ class DS3Env(gym.Env):
             self.heal_count+=1
             if self.heal_count > 3:
                 reward -= 0.1 * (self.heal_count - 3) #lowered penalty
+        
+        # Small time penalty (encourages faster boss kills, but not too harsh)
+        reward -= 0.001
+        
         return reward
 
 
