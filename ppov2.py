@@ -8,6 +8,8 @@ import math
 from get_frame import get_one_frame
 from memory import DS3Reader, BOSSES, ANIMATIONS
 import controller
+from pymem.exception import MemoryReadError
+
 
 class DS3Env(gym.Env):
     MAX_DIST = 12
@@ -130,20 +132,35 @@ class DS3Env(gym.Env):
                 controller.run_left(duration)
             case 8:
                 controller.heal()
-        
+
+    def _safe_dist(self):
+        try:
+            d = float(math.dist(self.player.pos, self.boss.pos))
+        except Exception:
+            return self.MAX_DIST
+        if not np.isfinite(d):
+            return self.MAX_DIST
+        return d
+    
+    def _safe_read(self, func, default=0):
+        try:
+            return func()
+        except:
+            print("Read was not safe from function: ", func.__name__)
+            return default
 
     def _get_observation(self, action):
         """Get current observation (stats + frame)"""
         frame = get_one_frame()
-        dist = math.dist(self.player.pos, self.boss.pos)
+        dist = self._safe_dist()
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
         action_success = action == 0 or self.player.animation in self.ACT_TO_ANI[action]
 
         stats = np.array(
             [
-                self.player.norm_hp, 
-                self.player.norm_sp, 
-                self.boss.norm_hp,
+                self._safe_read(lambda: self.player.norm_hp, 0.0),
+                self._safe_read(lambda: self.player.norm_sp, 0.0),
+                self._safe_read(lambda: self.boss.norm_hp, 0.0),
                 norm_dist,
                 action_success
             ], 
@@ -153,7 +170,6 @@ class DS3Env(gym.Env):
 
         return {'stats': stats, 'frame': frame}
     
-
     def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
         """Calculate reward based on state changes"""
         reward = 0.0
@@ -161,23 +177,19 @@ class DS3Env(gym.Env):
         # Reward for dealing damage to boss
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
         if boss_damage > 0:
-            reward += boss_damage * 3 #increased
+            reward += boss_damage * 4 #increased
         
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
-            reward -= player_damage * 2 #increased
+            reward -= player_damage * 2 #decreased
 
         # Add penalty for being too far away; ~3 units is the
         #  attack range so little more leeway before penalty
-        dist_to_boss = math.dist(self.player.pos, self.boss.pos)
+        dist_to_boss = self._safe_dist()
         norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
         if norm_dist > 0.5:
             reward -= 0.05 * (norm_dist - 0.50) / 0.50 #larger penalty for being farther away vs close
-
-        #add reward for being close to fight
-        if norm_dist < 0.35:
-            reward += 0.002
         
         # Large reward for killing boss
         if self.boss.hp <= 0:
@@ -185,7 +197,7 @@ class DS3Env(gym.Env):
         
         # Large penalty for dying
         if self.player.hp <= 0:
-            reward -= 2
+            reward -= 6 #increased by 1x
 
         if self.player.sp <= 0:
             reward -= 0.01
@@ -197,22 +209,23 @@ class DS3Env(gym.Env):
         if(action == 8):
             # penalty for wasting flask when hp is high
             HEAL_AMT = 250 #how much hp you get for healing
-            missing_hp = max(0.0, float(self.player.max_hp)) - float(self.player.hp)
+            missing_hp = max(0.0, (float(self.player.max_hp) - float(self.player.hp)))
             wasted_flask = max(0.0, HEAL_AMT - missing_hp)
             norm_wasted_flask = min(1.0, wasted_flask / HEAL_AMT)
-
-            hp_frac = float(self.player.hp) / float(self.player.max_hp)
-            #penalty for healing with high hp
-            if hp_frac > 0.65 : #since health potion is roughly half of the players hp
-                reward -= 0.5
-            #reward healing at low health
-            if hp_frac <= 0.45: #perfect percent for none wasted ...
-                reward += 0.5 * (1.0 - norm_wasted_flask)
+            if(float(self.player.max_hp) > 0): #only when hp is valid we calculate rewards using hp 
+                hp_frac = float(self.player.hp) / max(1, float(self.player.max_hp))
+                #penalty for healing with high hp
+                if hp_frac > 0.65 : #since health potion is roughly half of the players hp
+                    reward -= 0.2
+                #reward healing at low health
+                if hp_frac <= 0.45: #perfect percent for none wasted ...
+                    reward += 0.5 * (1.0 - norm_wasted_flask)
+                
             
             # penalty if healed 3+ times in the episode
             self.heal_count+=1
             if self.heal_count > 3:
-                reward -= 0.1 * (self.heal_count - 3) #lowered penalty
+                reward -= 0.05 * (self.heal_count - 3) #lowered penalty
         return reward
 
 
