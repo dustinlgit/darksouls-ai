@@ -182,7 +182,7 @@ class DS3Env(gym.Env):
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
-            reward -= player_damage * 2 #decreased
+            reward -= player_damage * 1 #decreased
 
         # Add penalty for being too far away; ~3 units is the
         #  attack range so little more leeway before penalty
@@ -191,6 +191,10 @@ class DS3Env(gym.Env):
         if norm_dist > 0.5:
             reward -= 0.05 * (norm_dist - 0.50) / 0.50 #larger penalty for being farther away vs close
         
+        #reward attacking 
+        if(action == 1 or action == 2):
+            reward += 0.05
+
         # Large reward for killing boss
         if self.boss.hp <= 0:
             reward += 10
@@ -200,9 +204,8 @@ class DS3Env(gym.Env):
             reward -= 6 #increased by 1x
 
         if self.player.sp <= 0:
-            reward -= 0.01
+            reward -= 0.5 #increased
 
-        
         #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
         reward -= 0.005
         
@@ -220,7 +223,6 @@ class DS3Env(gym.Env):
                 #reward healing at low health
                 if hp_frac <= 0.45: #perfect percent for none wasted ...
                     reward += 0.5 * (1.0 - norm_wasted_flask)
-                
             
             # penalty if healed 3+ times in the episode
             self.heal_count+=1
