@@ -47,8 +47,15 @@ class DS3Env(gym.Env):
         })
 
         self.heal_count = 0
-
+    
     def step(self, action):
+        try:
+            self.ds3.initialize()
+            self.player = self.ds3.player
+            self.boss = self.ds3.boss
+        except Exception: #if we cant red memory for some reason
+            obs = self._get_observation(action=0)
+            return obs, -0.1, False, True, {"memory_error": True}
         prev_player_norm_hp = self.player.norm_hp
         prev_boss_norm_hp = self.boss.norm_hp
         
@@ -149,13 +156,22 @@ class DS3Env(gym.Env):
             print("Read was not safe from function: ", func.__name__)
             return default
 
+    def _safe_animation(self, default=None):
+        try:
+            return self.player.animation
+        except MemoryReadError:
+            return default
+        except Exception:
+            return default
+        
     def _get_observation(self, action):
         """Get current observation (stats + frame)"""
         frame = get_one_frame()
         dist = self._safe_dist()
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
-        action_success = action == 0 or self.player.animation in self.ACT_TO_ANI[action]
-
+        ani = self._safe_animation(default=None)
+        #action_success = action == 0 or self.player.animation in self.ACT_TO_ANI[action]
+        action_success = 1.0 if (ani is not None and ani in self.ACT_TO_ANI[action]) else 0.0 #prevent memory crash
         stats = np.array(
             [
                 self._safe_read(lambda: self.player.norm_hp, 0.0),
