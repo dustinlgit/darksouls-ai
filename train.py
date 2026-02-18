@@ -56,6 +56,16 @@ else:
         tensorboard_log="./ppo_ds3_logs"
     )
 
+class EpisodeStatsCallback(BaseCallback):
+    def _on_step(self) -> bool:
+        for info in self.locals.get("infos", []):
+            if "episode" in info:
+                ep = info["episode"]
+                self.logger.record("episode/boss_dmg", ep["boss_dmg"])
+                self.logger.record("episode/player_dmg", ep["player_dmg"])
+                self.logger.record("episode/success", ep["success"])
+        return True
+    
 eval_env = DummyVecEnv([make_env])
 eval_env = VecFrameStack(eval_env, n_stack=4, channels_order="last")
 eval_env = VecTransposeImage(eval_env)
@@ -72,7 +82,7 @@ eval_cb = EvalCallback(
 try:
     print("Begin training")
 
-    model.learn(args.steps, callback=[checkpoint, eval_cb])
+    model.learn(args.steps, callback=[checkpoint, eval_cb, EpisodeStatsCallback()])
 except KeyboardInterrupt:
     print("Training cancelled...")
     model.save(f"./models/{datetime.now().strftime('%Y-%m-%d@%H:%M')}")

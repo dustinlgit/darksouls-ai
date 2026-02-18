@@ -63,13 +63,15 @@ class PPOAgent:
         self,
         state_dim=4,  # stats dimension
         action_dim=10,
-        lr=3e-4,
+        lr=1e-4,
         gamma=0.99,
         eps_clip=0.2,
         k_epochs=10,
         hidden_dim=256,
-        device=None
+        device=None,
+        target_kl=0.03
     ):
+        self.target_kl = target_kl
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.lr = lr

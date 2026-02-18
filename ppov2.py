@@ -45,7 +45,9 @@ class DS3Env(gym.Env):
             'stats': spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32),
             'frame': spaces.Box(low=0, high=255, shape=(128, 128, 1), dtype=np.uint8)
         })
-
+        
+        self.ep_boss_dmg = 0
+        self.ep_player_dmg = 0
         self.heal_count = 0
     
     def step(self, action):
@@ -53,27 +55,46 @@ class DS3Env(gym.Env):
             self.ds3.initialize()
             self.player = self.ds3.player
             self.boss = self.ds3.boss
-        except Exception: #if we cant red memory for some reason
+        except Exception:
             obs = self._get_observation(action=0)
             return obs, -0.1, False, True, {"memory_error": True}
+
         prev_player_norm_hp = self.player.norm_hp
         prev_boss_norm_hp = self.boss.norm_hp
-        
+
         self.do_action(action)
         obs = self._get_observation(action)
         reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action)
-        terminated = self.player.hp <= 0 or self.boss.hp <= 0
-        truncated = self.step_count >= self.max_steps
 
         self.step_count += 1
-        
+
+        terminated = (self.player.hp <= 0) or (self.boss.hp <= 0)
+        truncated = (self.step_count >= self.max_steps)
+
+        boss_damage = max(0.0, prev_boss_norm_hp - self.boss.norm_hp)
+        player_damage = max(0.0, prev_player_norm_hp - self.player.norm_hp)
+
+        self.ep_boss_dmg += boss_damage
+        self.ep_player_dmg += player_damage
+
         info = {
-            'player_hp': self.player.hp,
-            'boss_hp': self.boss.hp,
-            'is_success': bool(self.boss.hp <= 0 and self.player.hp > 0)
+            "player_hp": self.player.hp,
+            "boss_hp": self.boss.hp,
+            "is_success": bool(self.boss.hp <= 0 and self.player.hp > 0),
         }
-        
-        #self.ds3.ds3.write_int(self.boss._hp_addr, 0)
+
+        if terminated or truncated:
+            print("EP boss_dmg:", self.ep_boss_dmg,
+                "player_dmg:", self.ep_player_dmg,
+                "success:", info["is_success"])
+
+            info["episode"] = {
+                "boss_dmg": float(self.ep_boss_dmg),
+                "player_dmg": float(self.ep_player_dmg),
+                "len": int(self.step_count),
+                "success": float(info["is_success"]),
+            }
+
         return obs, reward, terminated, truncated, info
     
 
@@ -95,6 +116,9 @@ class DS3Env(gym.Env):
             self._wait_until_loaded()
             controller.boss_died_reset()
             time.sleep(10)
+        self.ep_boss_dmg = 0.0
+        self.ep_player_dmg = 0.0
+        self.heal_count = 0
         
         self._wait_until_loaded()
         self._reset_mem()
@@ -212,9 +236,8 @@ class DS3Env(gym.Env):
             if norm_dist < 0.38:
                 reward -= 0.01
 
-        if(action in ATTACK_ACT):
-            if(norm_dist <= 0.30):
-                reward +=0.02 * norm_dist
+        if action in ATTACK_ACT and norm_dist <= 0.30:
+            reward += 0.02 * (1.0 - norm_dist / 0.30)
 
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
@@ -276,7 +299,6 @@ class DS3Env(gym.Env):
 
     def _reset_mem(self):
         self.ds3.initialize()
-        self.heal_count = 0
         self.player = self.ds3.player
         self.boss = self.ds3.boss
 
