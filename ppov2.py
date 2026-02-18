@@ -16,15 +16,15 @@ class DS3Env(gym.Env):
 
     # Animation codes for actions. Used to see if an action actually went through.
     ACT_TO_ANI = {
-        1: ANIMATIONS.LIGHT_ATTACK,
-        2: ANIMATIONS.LIGHT_ATTACK,
-        3: ANIMATIONS.DODGE,
-        4: ANIMATIONS.ROLL,
-        5: ANIMATIONS.MOVE,
-        6: ANIMATIONS.MOVE,
-        7: ANIMATIONS.MOVE,
-        8: ANIMATIONS.MOVE,
-        9: ANIMATIONS.HEAL
+        1: ANIMATIONS.LIGHT_ATTACK, #0
+        2: ANIMATIONS.LIGHT_ATTACK, #1
+        3: ANIMATIONS.DODGE, #2
+        4: ANIMATIONS.ROLL, #3
+        5: ANIMATIONS.MOVE, #4
+        6: ANIMATIONS.MOVE, #5
+        7: ANIMATIONS.MOVE, #6
+        8: ANIMATIONS.MOVE, #7
+        9: ANIMATIONS.HEAL #8
     }
 
 
@@ -171,7 +171,12 @@ class DS3Env(gym.Env):
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
         ani = self._safe_animation(default=None)
         #action_success = action == 0 or self.player.animation in self.ACT_TO_ANI[action]
-        action_success = 1.0 if (ani is not None and ani in self.ACT_TO_ANI[action]) else 0.0 #prevent memory crash
+        ani = self._safe_animation(default=None)
+        if action == 0:
+            action_success = 1.0
+        else:
+            expected = self.ACT_TO_ANI.get(action, [])
+            action_success = 1.0 if (ani is not None and ani in expected) else 0.0
         stats = np.array(
             [
                 self._safe_read(lambda: self.player.norm_hp, 0.0),
@@ -188,28 +193,44 @@ class DS3Env(gym.Env):
     
     def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
         """Calculate reward based on state changes"""
-        reward = 0.0
+        ATTACK_ACT = (0,1)
+        DEFENSE_ACT = (3,4)
         
+        reward = 0.0
         # Reward for dealing damage to boss
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
+        dist_to_boss = self._safe_dist()
+        norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
+
         if boss_damage > 0:
-            reward += boss_damage * 4 #increased
-        
+            reward += boss_damage * 4 
+            #reward good attacking (damages boss with action)
+            if action in ATTACK_ACT:
+                reward += 0.05
+        else:
+            # penalty for stalling...
+            if norm_dist < 0.38:
+                reward -= 0.01
+
+        if(action in ATTACK_ACT):
+            if(norm_dist <= 0.30):
+                reward +=0.02 * norm_dist
+
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
-            reward -= player_damage * 1 #decreased
-
+            reward -= player_damage * 2 #increased
+        else: #no dmg taken, and it rolled/dodge when it was close to the boss (actually matters)
+            if action in DEFENSE_ACT and norm_dist < 0.4:
+                reward += 0.003
+        #rolling sitll penalized so it learns its not all good to just roll around
+        if action in DEFENSE_ACT:
+            reward -= 0.02
         # Add penalty for being too far away; ~3 units is the
         #  attack range so little more leeway before penalty
-        dist_to_boss = self._safe_dist()
-        norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
-        if norm_dist > 0.5:
-            reward -= 0.05 * (norm_dist - 0.50) / 0.50 #larger penalty for being farther away vs close
-        
-        #reward attacking 
-        if(action == 1 or action == 2):
-            reward += 0.05
+        reward += 0.02 * (1.0 - norm_dist)
+        if norm_dist > 0.55:
+            reward -= 0.03 * (norm_dist - 0.55) / 0.45
 
         # Large reward for killing boss
         if self.boss.hp <= 0:
@@ -219,8 +240,14 @@ class DS3Env(gym.Env):
         if self.player.hp <= 0:
             reward -= 6 #increased by 1x
 
+        # better stamina rewards that slowly discourages high sp use
+        sp_frac = 0.0
+        if float(self.player.max_sp) > 0:
+            sp_frac = float(self.player.sp) / max(1.0, float(self.player.max_sp))
+        if sp_frac < 0.10:
+            reward -= 0.02
         if self.player.sp <= 0:
-            reward -= 0.5 #increased
+            reward -= 0.03
 
         #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
         reward -= 0.005
