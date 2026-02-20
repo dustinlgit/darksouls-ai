@@ -9,8 +9,7 @@ from get_frame import get_one_frame
 from memory import DS3Reader, BOSSES, ANIMATIONS
 import controller
 from pymem.exception import MemoryReadError
-
-
+import pymem
 class DS3Env(gym.Env):
     MAX_DIST = 12
 
@@ -30,15 +29,19 @@ class DS3Env(gym.Env):
 
     def __init__(self):
         super().__init__()
-        
-        try:
-            self.ds3 = DS3Reader(BOSSES.IUDEX_GUNDYR)
-            self.player = None
-            self.boss = None
-        except Exception as e:
-            raise RuntimeError("Memory reader could not be initialized. Dark Souls III Is probably not open. Error: ", e)
+        while True:
+            try:
+                self.ds3 = DS3Reader(BOSSES.IUDEX_GUNDYR)
+                self.player = None
+                self.boss = None
+                self.ds3.attach()
+                break
+            except Exception as e:
+                print("Memory reader could not be initialized. Dark Souls III Is probably not open. Error: ", e)
+                print("Trying again: DS3Env")
 
         self.step_count = 0
+        self.needs_refresh = True
         self.max_steps = 10000
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Dict({
@@ -48,59 +51,78 @@ class DS3Env(gym.Env):
         
         self.ep_boss_dmg = 0
         self.ep_player_dmg = 0
+        self.prev_player_hp = None
+        self.prev_boss_hp = None
         self.heal_count = 0
     
     def step(self, action):
         try:
-            self.ds3.initialize()
-            self.player = self.ds3.player
-            self.boss = self.ds3.boss
-        except Exception:
-            obs = self._get_observation(action=0)
-            return obs, -0.1, False, True, {"memory_error": True}
+            #self.ds3.initialize()
+            self.ds3.ensure_attached()
 
-        prev_player_norm_hp = self.player.norm_hp
-        prev_boss_norm_hp = self.boss.norm_hp
+            # only rebuild pointers/entities if we marked them dirty
+            if self.needs_refresh or self.player is None or self.boss is None:
+                self.ds3.refresh()
+                self.player = self.ds3.player
+                self.boss = self.ds3.boss
+                self.needs_refresh = False
 
-        self.do_action(action)
-        obs = self._get_observation(action)
-        reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action)
+            prev_player_norm_hp = self.player.norm_hp
+            prev_boss_norm_hp = self.boss.norm_hp
+    
+            self.do_action(action)
+            new_boss_norm_hp = float(self.boss.norm_hp)
+            boss_damage = prev_boss_norm_hp - new_boss_norm_hp
 
-        self.step_count += 1
+            print(
+                f"prev_boss_norm_hp={prev_boss_norm_hp:.4f} | "
+                f"new_boss_norm_hp={new_boss_norm_hp:.4f} | "
+                f"boss_damage={boss_damage:.4f}"
+            )
+            new_p = float(self.player.hp)
+            new_b = float(self.boss.hp)
 
-        terminated = (self.player.hp <= 0) or (self.boss.hp <= 0)
-        truncated = (self.step_count >= self.max_steps)
+            p_dmg = max(0.0, self.prev_player_hp - new_p) if self.prev_player_hp is not None else 0.0
+            b_dmg = max(0.0, self.prev_boss_hp - new_b) if self.prev_boss_hp is not None else 0.0
 
-        boss_damage = max(0.0, prev_boss_norm_hp - self.boss.norm_hp)
-        player_damage = max(0.0, prev_player_norm_hp - self.player.norm_hp)
+            if p_dmg < 1500:
+                self.ep_player_dmg += p_dmg
+            if b_dmg < 1500:
+                self.ep_boss_dmg += b_dmg
 
-        self.ep_boss_dmg += boss_damage
-        self.ep_player_dmg += player_damage
+            self.prev_player_hp = new_p
+            self.prev_boss_hp = new_b
 
-        info = {
-            "player_hp": self.player.hp,
-            "boss_hp": self.boss.hp,
-            "is_success": bool(self.boss.hp <= 0 and self.player.hp > 0),
-        }
+            obs = self._get_observation(action)
 
-        if terminated or truncated:
-            print("EP boss_dmg:", self.ep_boss_dmg,
-                "player_dmg:", self.ep_player_dmg,
-                "success:", info["is_success"])
+            reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action)
 
-            info["episode"] = {
-                "boss_dmg": float(self.ep_boss_dmg),
-                "player_dmg": float(self.ep_player_dmg),
-                "len": int(self.step_count),
-                "success": float(info["is_success"]),
+
+            self.step_count += 1
+
+            terminated = (self.player.hp <= 0) or (self.boss.hp <= 0)
+            truncated = (self.step_count >= self.max_steps)
+            if terminated or truncated:
+                self.needs_refresh = True
+            info = {
+                "player_hp": self.player.hp,
+                "boss_hp": self.boss.hp,
+                "player_dmg": self.ep_player_dmg,
+                "boss_dmg": self.ep_boss_dmg,
+                "is_success": bool(self.boss.hp <= 0 and self.player.hp > 0),
             }
+            return obs, reward, terminated, truncated, info
 
-        return obs, reward, terminated, truncated, info
+        except (MemoryReadError, pymem.exception.WinAPIError, RuntimeError) as e:
+            self.needs_refresh = True
+            self.player = None
+            self.boss = None
+            obs = self._get_observation(action=0)
+            return obs, -0.1, False, True, {"memory_error": True, "err": str(e)}
     
 
     def render(self):
         pass
-
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -123,6 +145,9 @@ class DS3Env(gym.Env):
         self._wait_until_loaded()
         self._reset_mem()
         
+        self.prev_player_hp = float(self.player.hp)
+        self.prev_boss_hp = float(self.boss.hp)
+
         print("Walking to boss...")
         controller.walk_to_boss()
         
@@ -190,7 +215,7 @@ class DS3Env(gym.Env):
         
     def _get_observation(self, action):
         """Get current observation (stats + frame)"""
-        frame = get_one_frame()
+        frame = get_one_frame(self.ds3)
         dist = self._safe_dist()
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
         ani = self._safe_animation(default=None)
@@ -227,37 +252,29 @@ class DS3Env(gym.Env):
         norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
 
         if boss_damage > 0:
-            reward += boss_damage * 4 
+            reward += boss_damage * 12 
             #reward good attacking (damages boss with action)
             if action in ATTACK_ACT:
-                reward += 0.05
-        else:
-            # penalty for stalling...
-            if norm_dist < 0.38:
-                reward -= 0.01
+                reward += 0.10
 
         if action in ATTACK_ACT and norm_dist <= 0.30:
-            reward += 0.02 * (1.0 - norm_dist / 0.30)
+            reward += 0.05
+        else:
+            reward -= 0.01 #bad to swing in air
 
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
-            reward -= player_damage * 2 #increased
-        else: #no dmg taken, and it rolled/dodge when it was close to the boss (actually matters)
-            if action in DEFENSE_ACT and norm_dist < 0.4:
-                reward += 0.003
-        #rolling sitll penalized so it learns its not all good to just roll around
-        if action in DEFENSE_ACT:
-            reward -= 0.02
+            reward -= player_damage * 4 #increased
+
         # Add penalty for being too far away; ~3 units is the
         #  attack range so little more leeway before penalty
-        reward += 0.02 * (1.0 - norm_dist)
         if norm_dist > 0.55:
-            reward -= 0.03 * (norm_dist - 0.55) / 0.45
-
+            reward -= 0.04 * (norm_dist - 0.55) / 0.45
+        
         # Large reward for killing boss
         if self.boss.hp <= 0:
-            reward += 10
+            reward += 15
         
         # Large penalty for dying
         if self.player.hp <= 0:
@@ -273,7 +290,7 @@ class DS3Env(gym.Env):
             reward -= 0.03
 
         #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
-        reward -= 0.005
+        reward -= 0.007
         
         if(action == 8):
             # penalty for wasting flask when hp is high
@@ -301,6 +318,7 @@ class DS3Env(gym.Env):
         self.ds3.initialize()
         self.player = self.ds3.player
         self.boss = self.ds3.boss
+        self.needs_refresh = False
 
 
     def _wait_until_teleported(self):

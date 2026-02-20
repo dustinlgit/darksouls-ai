@@ -61,9 +61,9 @@ class EpisodeStatsCallback(BaseCallback):
         for info in self.locals.get("infos", []):
             if "episode" in info:
                 ep = info["episode"]
-                self.logger.record("episode/boss_dmg", ep["boss_dmg"])
-                self.logger.record("episode/player_dmg", ep["player_dmg"])
-                self.logger.record("episode/success", ep["success"])
+                self.logger.record("episode/boss_dmg", ep.get("boss_dmg", 0.0))
+                self.logger.record("episode/player_dmg", ep.get("player_dmg", 0.0))
+                self.logger.record("episode/is_success", ep.get("is_success", 0.0))
         return True
     
 eval_env = DummyVecEnv([make_env])
@@ -81,7 +81,7 @@ eval_cb = EvalCallback(
 
 try:
     print("Begin training")
-
+    
     model.learn(args.steps, callback=[checkpoint, eval_cb, EpisodeStatsCallback()])
 except KeyboardInterrupt:
     print("Training cancelled...")
