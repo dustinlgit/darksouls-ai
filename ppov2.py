@@ -4,12 +4,13 @@ from gymnasium import spaces
 import numpy as np
 import time
 import math
-
+from get_frame import open
 from get_frame import get_one_frame
 from memory import DS3Reader, BOSSES, ANIMATIONS
 import controller
 from pymem.exception import MemoryReadError
 import pymem
+
 class DS3Env(gym.Env):
     MAX_DIST = 12
 
@@ -164,6 +165,8 @@ class DS3Env(gym.Env):
         self.prev_boss_hp = float(self.boss.hp)
 
         print("Walking to boss...")
+        open.focus_window("DARK SOULS III")
+        time.sleep(2)
         controller.walk_to_boss()
         
         self.step_count = 0
@@ -260,7 +263,6 @@ class DS3Env(gym.Env):
         ATTACK_ACT = (1,)
         DEFENSE_ACT = (2,3)
         HEAL = (8,)
-        
 
         reward = 0.0
         # Reward for dealing damage to boss
@@ -269,14 +271,16 @@ class DS3Env(gym.Env):
         norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
         player_norm_hp = float(self.player.norm_hp)
         hp_gain = max(0.0,  player_norm_hp - prev_player_norm_hp)
-
+        
         if boss_damage > 0:
-            reward += boss_damage * 10 #lowered 
+            reward += boss_damage * 12 #inc
             #reward good attacking (damages boss with action)
             if action in ATTACK_ACT:
                 reward += 0.10
-            if player_norm_hp < 0.35: #force heal discourage attack at low hp
+            if player_norm_hp < 0.30: #force heal discourage attack at low hp
                 reward -= 0.05
+        else:
+            reward -= 0.003
 
         if action in ATTACK_ACT:
             if norm_dist <= 0.30:
@@ -292,7 +296,7 @@ class DS3Env(gym.Env):
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
             low_hp_scale = 1.0 + (1.0 - player_norm_hp) * 2.0 #1-2
-            reward -= player_damage * 7 * low_hp_scale #increased
+            reward -= player_damage * 5 * low_hp_scale #decreased
             
         # Add penalty for being too far away; ~3 units is the
         #  attack range so little more leeway before penalty
@@ -317,7 +321,8 @@ class DS3Env(gym.Env):
             reward -= 0.03
 
         if hp_gain > 0: #the heal went through
-                reward += hp_gain * 8
+                reward += hp_gain * 0.05
+                self.heal_count += 1 
 
         #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
         reward -= 0.007
@@ -339,7 +344,6 @@ class DS3Env(gym.Env):
                     reward += 0.6 * (1.0 - norm_wasted_flask)
             
             # penalty if healed 3+ times in the episode
-            self.heal_count+=1
             if self.heal_count > 3:
                 reward -= 0.05 * (self.heal_count - 3)
         return reward

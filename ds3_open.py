@@ -55,9 +55,20 @@ def _kill_by_name(names, timeout=8.0):
         except Exception:
             pass
 
+def focus_window(window_title):
+    hwnd = win32gui.FindWindow(None, window_title)
+    if not hwnd:
+        print("Could not focus window")
+        return
+    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+    win32gui.SetForegroundWindow(hwnd)
+    time.sleep(0.1)
+    return hwnd
+
 def _ds3_running():
     for p in psutil.process_iter(["name"]):
         if (p.info["name"] or "").lower() == DS3_EXE.lower():
+            focus_window("DARK SOULS III")
             return True
     return False
 

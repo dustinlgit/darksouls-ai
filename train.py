@@ -14,6 +14,7 @@ import argparse
 
 from datetime import datetime
 from ppov2 import DS3Env
+from ppov2 import open
 
 def make_env():
     env = DS3Env()
@@ -78,11 +79,12 @@ eval_cb = EvalCallback(
     deterministic=True,
     render=False
 )
-
-try:
-    print("Begin training")
-    
-    model.learn(args.steps, callback=[checkpoint, eval_cb, EpisodeStatsCallback()])
-except KeyboardInterrupt:
-    print("Training cancelled...")
-    model.save(f"./models/{datetime.now().strftime('%Y-%m-%d@%H:%M')}")
+while True:
+    try:
+        print("Begin training")
+        model.learn(args.steps, callback=[checkpoint, eval_cb, EpisodeStatsCallback()])
+        break
+    except Exception as e:
+        print("Training cancelled...", e)
+        open.enter_game()
+        model.save(f"./models/{datetime.now().strftime('%Y-%m-%d@%H:%M')}")
