@@ -71,14 +71,7 @@ class DS3Env(gym.Env):
             prev_boss_norm_hp = self.boss.norm_hp
     
             self.do_action(action)
-            new_boss_norm_hp = float(self.boss.norm_hp)
-            boss_damage = prev_boss_norm_hp - new_boss_norm_hp
 
-            print(
-                f"prev_boss_norm_hp={prev_boss_norm_hp:.4f} | "
-                f"new_boss_norm_hp={new_boss_norm_hp:.4f} | "
-                f"boss_damage={boss_damage:.4f}"
-            )
             new_p = float(self.player.hp)
             new_b = float(self.boss.hp)
 
@@ -118,7 +111,17 @@ class DS3Env(gym.Env):
             self.player = None
             self.boss = None
             obs = self._get_observation(action=0)
-            return obs, -0.1, False, True, {"memory_error": True, "err": str(e)}
+
+            info = {
+                "memory_error": True,
+                "err": str(e),
+                "player_hp": 0.0,
+                "boss_hp": 0.0,
+                "player_dmg": float(getattr(self, "ep_player_dmg", 0.0)),
+                "boss_dmg": float(getattr(self, "ep_boss_dmg", 0.0)),
+                "is_success": False,
+            }
+            return obs, -0.1, False, True, info
     
 
     def render(self):
@@ -126,7 +129,19 @@ class DS3Env(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-
+        try:
+            self.ds3.ensure_attached()
+            self.ds3.refresh()
+            self.player = self.ds3.player
+            self.boss = self.ds3.boss
+            self.needs_refresh = False
+        except (MemoryReadError, pymem.exception.WinAPIError, RuntimeError):
+            # if refresh fails, re-init
+            self.ds3.attach()
+            self.ds3.refresh()
+            self.player = self.ds3.player
+            self.boss = self.ds3.boss
+            self.needs_refresh = False
         controller.keep_ds3_alive()
         
         # Release all keys first to ensure clean state
@@ -242,31 +257,43 @@ class DS3Env(gym.Env):
     
     def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
         """Calculate reward based on state changes"""
-        ATTACK_ACT = (0,1)
-        DEFENSE_ACT = (3,4)
+        ATTACK_ACT = (1,)
+        DEFENSE_ACT = (2,3)
+        HEAL = (8,)
         
+
         reward = 0.0
         # Reward for dealing damage to boss
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
         dist_to_boss = self._safe_dist()
         norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
+        player_norm_hp = float(self.player.norm_hp)
+        hp_gain = max(0.0,  player_norm_hp - prev_player_norm_hp)
 
         if boss_damage > 0:
-            reward += boss_damage * 12 
+            reward += boss_damage * 10 #lowered 
             #reward good attacking (damages boss with action)
             if action in ATTACK_ACT:
                 reward += 0.10
+            if player_norm_hp < 0.35: #force heal discourage attack at low hp
+                reward -= 0.05
 
-        if action in ATTACK_ACT and norm_dist <= 0.30:
-            reward += 0.05
-        else:
-            reward -= 0.01 #bad to swing in air
+        if action in ATTACK_ACT:
+            if norm_dist <= 0.30:
+                reward += 0.03
+            else:
+                reward -= 0.03  # bigger whiff penalty than -0.01
 
+            # penalty for attacking when low hp and we have potions
+            if player_norm_hp < 0.35 and self.heal_count <= 3:
+                reward -= 0.20
+        
         # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
-            reward -= player_damage * 4 #increased
-
+            low_hp_scale = 1.0 + (1.0 - player_norm_hp) * 2.0 #1-2
+            reward -= player_damage * 7 * low_hp_scale #increased
+            
         # Add penalty for being too far away; ~3 units is the
         #  attack range so little more leeway before penalty
         if norm_dist > 0.55:
@@ -289,12 +316,16 @@ class DS3Env(gym.Env):
         if self.player.sp <= 0:
             reward -= 0.03
 
+        if hp_gain > 0: #the heal went through
+                reward += hp_gain * 8
+
         #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
         reward -= 0.007
-        
-        if(action == 8):
+        if player_norm_hp < 0.25 and self.heal_count < 3 and action not in HEAL:
+            reward -= 0.05
+        if(action in HEAL):
             # penalty for wasting flask when hp is high
-            HEAL_AMT = 250 #how much hp you get for healing
+            HEAL_AMT = 250
             missing_hp = max(0.0, (float(self.player.max_hp) - float(self.player.hp)))
             wasted_flask = max(0.0, HEAL_AMT - missing_hp)
             norm_wasted_flask = min(1.0, wasted_flask / HEAL_AMT)
@@ -304,13 +335,13 @@ class DS3Env(gym.Env):
                 if hp_frac > 0.65 : #since health potion is roughly half of the players hp
                     reward -= 0.2
                 #reward healing at low health
-                if hp_frac <= 0.45: #perfect percent for none wasted ...
-                    reward += 0.5 * (1.0 - norm_wasted_flask)
+                if hp_frac <= 0.55: #perfect percent for none wasted ...
+                    reward += 0.6 * (1.0 - norm_wasted_flask)
             
             # penalty if healed 3+ times in the episode
             self.heal_count+=1
             if self.heal_count > 3:
-                reward -= 0.05 * (self.heal_count - 3) #lowered penalty
+                reward -= 0.05 * (self.heal_count - 3)
         return reward
 
 

@@ -17,7 +17,7 @@ from ppov2 import DS3Env
 
 def make_env():
     env = DS3Env()
-    env = Monitor(env)
+    env = Monitor(env, info_keywords=("boss_dmg", "player_dmg", "is_success"))
     return env
 
 parser = argparse.ArgumentParser(description="DS3 Agent Trainer")
