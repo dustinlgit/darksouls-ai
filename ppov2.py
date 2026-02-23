@@ -46,7 +46,7 @@ class DS3Env(gym.Env):
         self.max_steps = 10000
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Dict({
-            'stats': spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32),
+            'stats': spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
             'frame': spaces.Box(low=0, high=255, shape=(128, 128, 1), dtype=np.uint8)
         })
         
