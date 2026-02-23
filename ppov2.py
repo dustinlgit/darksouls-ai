@@ -54,8 +54,11 @@ class DS3Env(gym.Env):
         self.ep_player_dmg = 0
         self.prev_player_hp = None
         self.prev_boss_hp = None
+
         self.heal_count = 0
-    
+        self.heal_pending = 0
+        self.heal_attempted = False
+
     def step(self, action):
         try:
             #self.ds3.initialize()
@@ -156,7 +159,10 @@ class DS3Env(gym.Env):
             time.sleep(10)
         self.ep_boss_dmg = 0.0
         self.ep_player_dmg = 0.0
+
         self.heal_count = 0
+        self.heal_pending = 0
+        self.heal_attempted = False
         
         self._wait_until_loaded()
         self._reset_mem()
@@ -237,8 +243,9 @@ class DS3Env(gym.Env):
         dist = self._safe_dist()
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
         ani = self._safe_animation(default=None)
-        #action_success = action == 0 or self.player.animation in self.ACT_TO_ANI[action]
         ani = self._safe_animation(default=None)
+        heals_left = max(0.0, 3.0 - float(self.heal_count))
+        heals_left_frac = heals_left / 3.0
         if action == 0:
             action_success = 1.0
         else:
@@ -250,7 +257,8 @@ class DS3Env(gym.Env):
                 self._safe_read(lambda: self.player.norm_sp, 0.0),
                 self._safe_read(lambda: self.boss.norm_hp, 0.0),
                 norm_dist,
-                action_success
+                action_success,
+                heals_left_frac
             ], 
             dtype=np.float32
         )
@@ -296,12 +304,11 @@ class DS3Env(gym.Env):
         player_damage = prev_player_norm_hp - self.player.norm_hp
         if player_damage > 0:
             low_hp_scale = 1.0 + (1.0 - player_norm_hp) * 2.0 #1-2
-            reward -= player_damage * 5 * low_hp_scale #decreased
+            reward -= player_damage * 3 * low_hp_scale #decreased
             
-        # Add penalty for being too far away; ~3 units is the
-        #  attack range so little more leeway before penalty
-        if norm_dist > 0.55:
-            reward -= 0.04 * (norm_dist - 0.55) / 0.45
+
+        if 0.25 <= norm_dist <= 0.55:
+            reward += 0.01
         
         # Large reward for killing boss
         if self.boss.hp <= 0:
@@ -319,13 +326,26 @@ class DS3Env(gym.Env):
             reward -= 0.02
         if self.player.sp <= 0:
             reward -= 0.03
-
-        if hp_gain > 0: #the heal went through
-                reward += hp_gain * 0.05
-                self.heal_count += 1 
-
+            
         #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
-        reward -= 0.007
+        reward -= 0.002
+
+        if action in HEAL and self.heal_pending == 0:
+            self.heal_pending = 3 # give it 3 steps to land
+            self.heal_attempted = True
+
+        if hp_gain > 0 and self.heal_pending > 0:
+            reward += hp_gain * 0.05
+            self.heal_count += 1
+            self.heal_pending = 0
+            self.heal_attempted = False
+        elif self.heal_pending > 0: #count as a pending heal 
+                self.heal_pending -= 1
+
+        if self.heal_pending == 0 and self.heal_attempted: #interrupted heals get neg reward
+            reward -= 0.03
+            self.heal_attempted = False
+
         if player_norm_hp < 0.25 and self.heal_count < 3 and action not in HEAL:
             reward -= 0.05
         if(action in HEAL):
