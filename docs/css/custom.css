@@ -37,3 +37,7 @@ body > .container {
 code {
   font-size: 80%;
 }
+
+header {
+  margin: 40px 0;
+}

@@ -24,9 +24,9 @@ In addition to memory features, the agent receives raw pixel observations captur
     </figcaption>
 </figure>
 
-The CNN extracts spatial features such as boss animation cues, attack windups, and environmental layout. The memory features are processed through a multilayer perceptron (MLP). The outputs of the CNN and MLP are concatenated into a shared latent representation that feeds into both the policy head and value head of the PPO architecture. This hybrid observation design allows the model to leverage both structured state information and visual context.
+The CNN should extract spatial features such as boss animation cues, attack windups, and environmental layout. The memory features are processed through a multilayer perceptron (MLP). The outputs of the CNN and MLP are concatenated into a shared latent representation that feeds into both the policy head and value head of the PPO architecture. This hybrid observation design allows the model to leverage both structured state information and visual context.
 
-The action space is discrete (`Discrete(9)`), and each action triggers a predefined simulated sequence of (XBox360) controller inputs such as:
+Our agent uses the lock on feature that *Dark Souls III* offers, which centers the camera on the boss. This allows us to reduce complexity by not having to worry about the continuous camera space. The action space is discrete (`Discrete(9)`), and each action triggers a predefined simulated sequence of (XBox360) controller inputs such as:
 - No action
 - Light attack
 - Dodge
@@ -60,11 +60,24 @@ So far it has been difficult tweaking rewards. For example, we have trained for 
 
 An example of bad qualitative performance. The agent stays away from the boss, misses attacks (due to its distance), and mistimes dodge rolls, ending with the agent taking substantial damage while outputting none in return. This sort of bad qualitative performance is expected at the start of training, but as training moves forward, we use this visual qualitative analysis to shape the reward towards avoiding bad behavior. A common issue at the start was behavior similar to this short example even after training, which we were able to mitigate with different reward shaping.
 
+<figure style="text-align: center;">
+    <img src="assets/qual_bad.gif">
+    <figcaption>
+        <small>
+            <i>TODO: Figure 3: Good qualitative performance</i>
+        </small>
+    </figcaption>
+</figure>
+
+In contrast, good qualitative markers include the agent timing dodges, allowing it avoid damage, moving in order to avoid attacks, attacking without putting itself at risk of dying, and healing efficiently. Healing per flask usage is fixed, so maximizing flask healing is a sign of proper behavior. 
+
+Another qualitative measure of success is the boss's visual transition into its second phase. Surviving long enough and dealing enough damage to cause the boss to phase transition is a sign that the agent is learning correct behavior. 
+
 ## Remaining Goals and Challenges
 
-So far it has been difficult tweaking rewards. For example, we have trained for multiple days, using different ways to calculate rewards, and most of the time it starts to lean heavily towards wanting to do 1 certain action since it yields a high reward instead of just killing the boss. To be more specific, there have been times where I trained overnight, and woke up to see the agent rolling around, and healing a lot, instead of doing offensive actions. At the moment, some overnight runs yield a success (see figure above), meaning that our ai agent was able to defeat the boss, although this is good, we still struggle with attaining a model with a consistent success rate.
+So far, it has been difficult shaping rewards in an agreeable way. For example, we have trained for several days, using many different evualtion mindsets to shape the rewards, but most of the time the agent starts to learn to prioritize one certain action since it yields a high reward. It most likely learns this behavior because, while killing the boss gives a very large reward, it's sparse, so the agent tries to maximize rewards by other means. To be more specific, there have been times where our model trained overnight only for the agent to be rolling around, and healing a lot, instead of doing offensive actions. At the moment, some overnight runs yield a success (see figure above), meaning that our agent was able to defeat the boss. Although this is good, we still struggle with attaining a model with a consistent success rate, so we are still working on bridging the gap between occassional and consistent success.
 
-For the remainder of the quarter, I want to try my best to get a model that has a high consistency rate of killing the boss. If there comes a time where my model isn’t able to enact high win rates, I would like to shift into training the model with infinite hp, and see how that changes the learning rate, and outcomes. Some challenges which I think will be persistent might be how the agent will overfit to certain actions, such as spam rolling, to avoid damage, instead of attacking. I also think that something that limits me is the fact I have to train overnight, and I cannot so easily adjust certain rewards right away. I have to wait various hours to then analyze what happened, and what I can fix to train the next night.
+For that reason, our main goal for the rest of the quarter is to achieve high consistency in killing the boss. If there comes a time where my model isn’t able to enact high win rates, I would like to shift into training the model with infinite hp, and see how that changes the learning rate, and outcomes. Some challenges which I think will be persistent might be how the agent will overfit to certain actions, such as spam rolling, to avoid damage, instead of attacking. I also think that something that limits me is the fact I have to train overnight, and I cannot so easily adjust certain rewards right away. I have to wait various hours to then analyze what happened, and what I can fix to train the next night.
 
 ## Resources Used
 
