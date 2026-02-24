@@ -58,6 +58,7 @@ class DS3Env(gym.Env):
         self.heal_count = 0
         self.heal_pending = 0
         self.heal_attempted = False
+        self.steps_since_damage = 0
 
     def step(self, action):
         try:
@@ -163,6 +164,7 @@ class DS3Env(gym.Env):
         self.heal_count = 0
         self.heal_pending = 0
         self.heal_attempted = False
+        self.steps_since_damage = 0
         
         self._wait_until_loaded()
         self._reset_mem()
@@ -288,7 +290,8 @@ class DS3Env(gym.Env):
             if player_norm_hp < 0.30: #force heal discourage attack at low hp
                 reward -= 0.05
         else:
-            reward -= 0.003
+            self.steps_since_damage += 1
+            reward -= min(0.05, 0.002 * self.steps_since_damage)
 
         if action in ATTACK_ACT:
             if norm_dist <= 0.30:
@@ -329,6 +332,10 @@ class DS3Env(gym.Env):
             
         #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
         reward -= 0.002
+        if action in HEAL:
+            reward -= 0.005
+            if self.heal_pending > 0:
+                reward -= 0.10 #no spamming heal !!!
 
         if action in HEAL and self.heal_pending == 0:
             self.heal_pending = 3 # give it 3 steps to land
@@ -340,7 +347,7 @@ class DS3Env(gym.Env):
             self.heal_pending = 0
             self.heal_attempted = False
         elif self.heal_pending > 0: #count as a pending heal 
-                self.heal_pending -= 1
+            self.heal_pending -= 1
 
         if self.heal_pending == 0 and self.heal_attempted: #interrupted heals get neg reward
             reward -= 0.03
@@ -361,7 +368,7 @@ class DS3Env(gym.Env):
                     reward -= 0.2
                 #reward healing at low health
                 if hp_frac <= 0.55: #perfect percent for none wasted ...
-                    reward += 0.6 * (1.0 - norm_wasted_flask)
+                    reward += 0.15 * (1.0 - norm_wasted_flask)
             
             # penalty if healed 3+ times in the episode
             if self.heal_count > 3:

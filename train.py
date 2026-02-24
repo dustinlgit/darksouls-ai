@@ -58,13 +58,24 @@ else:
     )
 
 class EpisodeStatsCallback(BaseCallback):
+    def __init__(self, window=100, verbose=0):
+        super().__init__(verbose)
+        self.window = window
+        self.succ = deque(maxlen=window)
+        self.boss = deque(maxlen=window)
+        self.pdmg = deque(maxlen=window)
+
     def _on_step(self) -> bool:
         for info in self.locals.get("infos", []):
             if "episode" in info:
                 ep = info["episode"]
-                self.logger.record("episode/boss_dmg", ep.get("boss_dmg", 0.0))
-                self.logger.record("episode/player_dmg", ep.get("player_dmg", 0.0))
-                self.logger.record("episode/is_success", ep.get("is_success", 0.0))
+                self.succ.append(ep.get("is_success", 0.0))
+                self.boss.append(ep.get("boss_dmg", 0.0))
+                self.pdmg.append(ep.get("player_dmg", 0.0))
+
+                self.logger.record("roll/success_rate", float(np.mean(self.succ)))
+                self.logger.record("roll/boss_dmg_mean", float(np.mean(self.boss)))
+                self.logger.record("roll/player_dmg_mean", float(np.mean(self.pdmg)))
         return True
     
 eval_env = DummyVecEnv([make_env])
@@ -75,7 +86,7 @@ eval_cb = EvalCallback(
     best_model_save_path="./models/best_eval",
     log_path="./models/eval_logs",
     eval_freq=10_000,
-    n_eval_episodes=5,
+    n_eval_episodes=20,
     deterministic=True,
     render=False
 )
