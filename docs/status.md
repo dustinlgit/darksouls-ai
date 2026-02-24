@@ -39,15 +39,6 @@ The reward function is shaped to encourage effective combat behavior. The agent 
 
 ## Evaluation
 
-The main metric of success for our project is the consistency of our agent in defeating a boss enemy (or enemies). In other words, we want to maximize the probability of successfully defeating a boss enemy per episode. Once our agent is able to consistently defeat a boss, we can optimize its behavior and various other metrics during combat. Other metrics will include damage taken, time taken, and reward metrics, per boss fight (episode). 
-
-The baseline metrics will come from a policy that takes random actions or a basic policy manually weighted towards certain actions. Another baseline to consider is the performance of a human player who is new to the game. As *Dark Souls III* is a complex game, the baseline policies are expected to perform abysmally, so an expected increase of 20% (flat) boss defeat rate is expected. Compared to a new player, we expect a trained agent to perform 100% better (relative).
-
-Qualitatively, as part of the Dreamer framework, the internals of the model will be tested in the real world environment (*Dark Souls III*). Sanity checking will include episodes being run with the current policy in the real environment. We can observe whether our agent has developed action patterns in response to the environment (boss enemy and current resources), or if the agent is randomly choosing actions. The agent dodging in response to enemy attacks and attacking the enemy when its vulnerable are qualitative signs of a successful policy. Debugging will be reliant on observing the agent's actions. If we observe behavior from the agent that is detrimental to their ability to defeat the enemy, we can do reward shaping to discourage it.
-
-So far it has been difficult tweaking rewards. For example, we have trained for multiple days, using different ways to calculate rewards, and most of the time it starts to lean heavily towards wanting to do 1 certain action since it yields a high reward instead of just killing the boss. To be more specific, there have been times where I trained overnight, and woke up to see the agent rolling around, and healing a lot, instead of doing offensive actions. At the moment, some overnight runs yield a success (see figure above), meaning that our ai agent was able to defeat the boss, although this is good, we still struggle with attaining a model with a consistent success rate.
-
-
 <figure style="text-align: center;">
     <img src="assets/qual_bad.gif">
     <figcaption>
@@ -61,23 +52,26 @@ So far it has been difficult tweaking rewards. For example, we have trained for 
 An example of bad qualitative performance. The agent stays away from the boss, misses attacks (due to its distance), and mistimes dodge rolls, ending with the agent taking substantial damage while outputting none in return. This sort of bad qualitative performance is expected at the start of training, but as training moves forward, we use this visual qualitative analysis to shape the reward towards avoiding bad behavior. A common issue at the start was behavior similar to this short example even after training, which we were able to mitigate with different reward shaping.
 
 <figure style="text-align: center;">
-    <img src="assets/qual_bad.gif">
+    <img src="assets/qual_good.gif">
     <figcaption>
         <small>
-            <i>TODO: Figure 3: Good qualitative performance</i>
+            <i>Figure 3: Good qualitative performance</i>
         </small>
     </figcaption>
 </figure>
 
-In contrast, good qualitative markers include the agent timing dodges, allowing it avoid damage, moving in order to avoid attacks, attacking without putting itself at risk of dying, and healing efficiently. Healing per flask usage is fixed, so maximizing flask healing is a sign of proper behavior. 
-
-Another qualitative measure of success is the boss's visual transition into its second phase. Surviving long enough and dealing enough damage to cause the boss to phase transition is a sign that the agent is learning correct behavior. 
+In contrast, an example of good qualitative performance. The agent times rolls correctly and positions itself to avoid boss attacks. It no longer stays so far away from the boss that interaction is impossible. It attacks the boss and deals damage without putting itself at risk of taking too much damage in return. While not perfect gameplay, this behavior shows that our agent has learned to fight the boss in a more streamlined manner.
 
 ## Remaining Goals and Challenges
 
-So far, it has been difficult shaping rewards in an agreeable way. For example, we have trained for several days, using many different evualtion mindsets to shape the rewards, but most of the time the agent starts to learn to prioritize one certain action since it yields a high reward. It most likely learns this behavior because, while killing the boss gives a very large reward, it's sparse, so the agent tries to maximize rewards by other means. To be more specific, there have been times where our model trained overnight only for the agent to be rolling around, and healing a lot, instead of doing offensive actions. At the moment, some overnight runs yield a success (see figure above), meaning that our agent was able to defeat the boss. Although this is good, we still struggle with attaining a model with a consistent success rate, so we are still working on bridging the gap between occassional and consistent success.
+So far, it has been difficult shaping rewards in an agreeable way. For example, we have trained for several days, using many different evualtion mindsets to shape the rewards, but most of the time the agent starts to learn to prioritize one certain action since it yields a high reward. It most likely learns this behavior because, while killing the boss gives a very large reward, it's sparse, so the agent tries to maximize rewards by other means. To be more specific, there have been times where our model trained overnight only for the agent to be rolling around, and healing a lot, instead of taking offensive actions. At the moment, some overnight runs yield a success(es), meaning that our agent was able to defeat the boss. Although this is good, we still struggle with attaining a model with a consistent success rate, so we are still working on bridging the gap between occassional and consistent success.
 
-For that reason, our main goal for the rest of the quarter is to achieve high consistency in killing the boss. If there comes a time where my model isn’t able to enact high win rates, I would like to shift into training the model with infinite hp, and see how that changes the learning rate, and outcomes. Some challenges which I think will be persistent might be how the agent will overfit to certain actions, such as spam rolling, to avoid damage, instead of attacking. I also think that something that limits me is the fact I have to train overnight, and I cannot so easily adjust certain rewards right away. I have to wait various hours to then analyze what happened, and what I can fix to train the next night.
+For that reason, our main goal for the rest of the quarter is to achieve high consistency in killing the boss. We have several avenues to explore, but time remains the greatest obstacle for us. There is no way to simulate *Dark Souls III* headlessly, so training time is limited to the speed at which the game can be played. It is a graphically intensive game making paralell training non-feasible.
+
+Regardless, we have several possible avenues to explore in order to optimize performance. Our actual goal for the agent to kill the boss is very sparse, so we may try a different training loop that allows the agent to replenish HP as it takes damage, but we would still give penalties
+
+
+If there comes a time where my model isn’t able to enact high win rates, I would like to shift into training the model with infinite hp, and see how that changes the learning rate, and outcomes. Some challenges which I think will be persistent might be how the agent will overfit to certain actions, such as spam rolling, to avoid damage, instead of attacking. I also think that something that limits me is the fact I have to train overnight, and I cannot so easily adjust certain rewards right away. I have to wait various hours to then analyze what happened, and what I can fix to train the next night.
 
 ## Resources Used
 
