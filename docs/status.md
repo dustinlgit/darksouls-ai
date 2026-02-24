@@ -47,6 +47,7 @@ Remaining Goals and Challenges
 For the remainder of the quarter, I want to try my best to get a model that has a high consistency rate of killing the boss. If there comes a time where my model isn’t able to enact high win rates, I would like to shift into training the model with infinite hp, and see how that changes the learning rate, and outcomes. Some challenges which I think will be persistent might be how the agent will overfit to certain actions, such as spam rolling, to avoid damage, instead of attacking. I also think that something that limits me is the fact I have to train overnight, and I cannot so easily adjust certain rewards right away. I have to wait various hours to then analyze what happened, and what I can fix to train the next night.
 
 ## Resources Used
+
 ##### Reinforcement Learning
 - Stable-Baselines3 for the PPO implementation and training framework
 - Gymnasium to build our custom *Dark Souls III* environment
@@ -54,17 +55,19 @@ For the remainder of the quarter, I want to try my best to get a model that has 
 - Official Stable-Baselines3 and PyTorch documentation for hyperparameter configuration and architecture setup
 - Online reinforcement learning resources and PPO research discussions for understanding the clipped objective and generalized advantage estimation
 - StackOverflow and technical forums for debugging implementation and environment-integration issues
+
 ##### Interface and Environment Utilities
 - [pymem](https://pypi.org/project/Pymem/) for reading structured game state values directly from *Dark Souls III* memory
 - [vgamepad](https://github.com/yannbouteiller/vgamepad) (virtual XBox360 controller) for executing agent actions
     - which utilizes [ViGEmBus](https://github.com/nefarius/ViGEmBus)
 - [Boss Arena](https://www.nexusmods.com/darksouls3/mods/1854) mod for *Dark Souls III*, which enables rapid access to the boss encounter and significantly reduces reset time between episodes, improving training efficiency and experimental control
 - [The Grand Archives](https://github.com/The-Grand-Archives/Dark-Souls-III-CT-TGA) for providing a foundation for memory data extraction
+
 ##### AI Usage
-- AI tools (including ChatGPT) for:
-    - clarifying PPO theory, 
-    - debugging conceptual reinforcement learning issues, 
-    - refining reward design
-    - improving report clarity
+- AI tools (including ChatGPT) for
+- clarifying PPO theory, 
+- debugging conceptual reinforcement learning issues, 
+- refining reward design
+- improving report clarity
 
 ## Video Summary
