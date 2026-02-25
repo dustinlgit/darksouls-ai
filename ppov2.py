@@ -10,21 +10,30 @@ from memory import DS3Reader, BOSSES, ANIMATIONS
 import controller
 from pymem.exception import MemoryReadError
 import pymem
-
+ACTION_NAMES = {
+    0: "NO_OP",
+    1: "ATTACK",
+    2: "DODGE",
+    3: "ROLL",
+    4: "FORWARD",
+    5: "BACK",
+    6: "RIGHT",
+    7: "LEFT",
+    8: "HEAL"
+}
 class DS3Env(gym.Env):
     MAX_DIST = 12
 
     # Animation codes for actions. Used to see if an action actually went through.
     ACT_TO_ANI = {
-        1: ANIMATIONS.LIGHT_ATTACK, #0
-        2: ANIMATIONS.LIGHT_ATTACK, #1
-        3: ANIMATIONS.DODGE, #2
-        4: ANIMATIONS.ROLL, #3
-        5: ANIMATIONS.MOVE, #4
-        6: ANIMATIONS.MOVE, #5
-        7: ANIMATIONS.MOVE, #6
-        8: ANIMATIONS.MOVE, #7
-        9: ANIMATIONS.HEAL #8
+        1: ANIMATIONS.LIGHT_ATTACK,
+        2: ANIMATIONS.DODGE, 
+        3: ANIMATIONS.ROLL, 
+        4: ANIMATIONS.MOVE, 
+        5: ANIMATIONS.MOVE, 
+        6: ANIMATIONS.MOVE, 
+        7: ANIMATIONS.MOVE, 
+        8: ANIMATIONS.HEAL 
     }
 
 
@@ -56,8 +65,7 @@ class DS3Env(gym.Env):
         self.prev_boss_hp = None
 
         self.heal_count = 0
-        self.heal_pending = 0
-        self.heal_attempted = False
+        self.heal_cooldown = 0
         self.steps_since_damage = 0
 
     def step(self, action):
@@ -76,6 +84,20 @@ class DS3Env(gym.Env):
             prev_boss_norm_hp = self.boss.norm_hp
     
             self.do_action(action)
+            ani = self._safe_animation(default=None)
+            expected = self.ACT_TO_ANI.get(action, [])
+            hp_gain_abs = max(0.0, float(self.player.hp) - float(self.prev_player_hp or float(self.player.hp)))
+            if ani in expected:
+                if ani in ANIMATIONS.HEAL:
+                    print(f"[SUCCESS] HEAL (ani={ani}) | action={action}")
+                elif ani in ANIMATIONS.LIGHT_ATTACK:
+                    print(f"[SUCCESS] ATTACK (ani={ani}) | action={action}")
+                elif ani in ANIMATIONS.ROLL:
+                    print(f"[SUCCESS] ROLL (ani={ani}) | action={action}")
+                elif ani in ANIMATIONS.DODGE:
+                    print(f"[SUCCESS] DODGE (ani={ani}) | action={action}")
+                if hp_gain_abs > 100:
+                    print(f"[HP_JUMP] +{hp_gain_abs:.1f} hp | action={action} | ani={ani}")
 
             new_p = float(self.player.hp)
             new_b = float(self.boss.hp)
@@ -162,8 +184,7 @@ class DS3Env(gym.Env):
         self.ep_player_dmg = 0.0
 
         self.heal_count = 0
-        self.heal_pending = 0
-        self.heal_attempted = False
+        self.heal_cooldown = 0
         self.steps_since_damage = 0
         
         self._wait_until_loaded()
@@ -193,7 +214,6 @@ class DS3Env(gym.Env):
 
     def do_action(self, a, duration=0.1):
         '''core function for learning optimal actions'''
-
         match a:
             case 0:
                 # No acation
@@ -245,7 +265,6 @@ class DS3Env(gym.Env):
         dist = self._safe_dist()
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
         ani = self._safe_animation(default=None)
-        ani = self._safe_animation(default=None)
         heals_left = max(0.0, 3.0 - float(self.heal_count))
         heals_left_frac = heals_left / 3.0
         if action == 0:
@@ -281,18 +300,24 @@ class DS3Env(gym.Env):
         norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
         player_norm_hp = float(self.player.norm_hp)
         hp_gain = max(0.0,  player_norm_hp - prev_player_norm_hp)
-        
+        player_hp = self.player.hp
+        boss_hp = self.boss.hp
+
         if boss_damage > 0:
+            if 0.25 <= norm_dist <= 0.55: #moved position reward into only getting it if u dmg boss
+                reward += 0.01
+            self.steps_since_damage = 0
             reward += boss_damage * 12 #inc
             #reward good attacking (damages boss with action)
             if action in ATTACK_ACT:
                 reward += 0.10
-            if player_norm_hp < 0.30: #force heal discourage attack at low hp
-                reward -= 0.05
+            # if player_norm_hp < 0.30: #force heal discourage attack at low hp, commented out because this might cause them to not attack at all when low hp even though it might be critical
+            #     reward -= 0.05
         else:
             self.steps_since_damage += 1
-            reward -= min(0.05, 0.002 * self.steps_since_damage)
-
+            max_pen  = 0.01
+            scalar = 0.0005
+            reward -= min(max_pen, scalar * self.steps_since_damage)
         if action in ATTACK_ACT:
             if norm_dist <= 0.30:
                 reward += 0.03
@@ -300,26 +325,22 @@ class DS3Env(gym.Env):
                 reward -= 0.03  # bigger whiff penalty than -0.01
 
             # penalty for attacking when low hp and we have potions
-            if player_norm_hp < 0.35 and self.heal_count <= 3:
+            if player_norm_hp < 0.35 and self.heal_count < 3:
                 reward -= 0.20
         
         # Penalty for taking damage
-        player_damage = prev_player_norm_hp - self.player.norm_hp
+        player_damage = prev_player_norm_hp - player_norm_hp
         if player_damage > 0:
             low_hp_scale = 1.0 + (1.0 - player_norm_hp) * 2.0 #1-2
-            reward -= player_damage * 3 * low_hp_scale #decreased
-            
-
-        if 0.25 <= norm_dist <= 0.55:
-            reward += 0.01
+            reward -= player_damage * 6 * low_hp_scale #increased by 3
         
         # Large reward for killing boss
-        if self.boss.hp <= 0:
-            reward += 15
+        if boss_hp <= 0:
+            reward += 30
         
-        # Large penalty for dying
-        if self.player.hp <= 0:
-            reward -= 6 #increased by 1x
+        # Eh penalty for dying
+        if player_hp <= 0:
+            reward -= 6 
 
         # better stamina rewards that slowly discourages high sp use
         sp_frac = 0.0
@@ -330,49 +351,30 @@ class DS3Env(gym.Env):
         if self.player.sp <= 0:
             reward -= 0.03
             
-        #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
-        reward -= 0.002
-        if action in HEAL:
-            reward -= 0.005
-            if self.heal_pending > 0:
-                reward -= 0.10 #no spamming heal !!!
-
-        if action in HEAL and self.heal_pending == 0:
-            self.heal_pending = 3 # give it 3 steps to land
-            self.heal_attempted = True
-
-        if hp_gain > 0 and self.heal_pending > 0:
-            reward += hp_gain * 0.05
-            self.heal_count += 1
-            self.heal_pending = 0
-            self.heal_attempted = False
-        elif self.heal_pending > 0: #count as a pending heal 
-            self.heal_pending -= 1
-
-        if self.heal_pending == 0 and self.heal_attempted: #interrupted heals get neg reward
-            reward -= 0.03
-            self.heal_attempted = False
-
-        if player_norm_hp < 0.25 and self.heal_count < 3 and action not in HEAL:
-            reward -= 0.05
-        if(action in HEAL):
+        if hp_gain > 0:
             # penalty for wasting flask when hp is high
+            self.heal_count += 1
             HEAL_AMT = 250
-            missing_hp = max(0.0, (float(self.player.max_hp) - float(self.player.hp)))
+            missing_hp = max(0.0, (float(self.player.max_hp) - float(player_hp)))
             wasted_flask = max(0.0, HEAL_AMT - missing_hp)
             norm_wasted_flask = min(1.0, wasted_flask / HEAL_AMT)
-            if(float(self.player.max_hp) > 0): #only when hp is valid we calculate rewards using hp 
-                hp_frac = float(self.player.hp) / max(1, float(self.player.max_hp))
-                #penalty for healing with high hp
-                if hp_frac > 0.65 : #since health potion is roughly half of the players hp
+            if player_damage > 0:
+                reward -= 0.4
+            else:
+                reward += 0.2
+            # VALID hp num
+            if(float(self.player.max_hp) > 0):
+                hp_frac = float(player_hp) / max(1, float(self.player.max_hp))
+# -- healing at high hp
+                if hp_frac > 0.65 : 
                     reward -= 0.2
-                #reward healing at low health
-                if hp_frac <= 0.55: #perfect percent for none wasted ...
+# ++ healing at low hp
+                if hp_frac <= 0.40:
                     reward += 0.15 * (1.0 - norm_wasted_flask)
-            
-            # penalty if healed 3+ times in the episode
+# -- healing when alr healed 3x
             if self.heal_count > 3:
-                reward -= 0.05 * (self.heal_count - 3)
+                reward -= 0.06 * (self.heal_count - 3)
+        print("Heal Count (HP gained): ", self.heal_count)
         return reward
 
 
