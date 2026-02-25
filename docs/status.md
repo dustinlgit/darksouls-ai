@@ -41,7 +41,7 @@ The reward function is shaped to encourage effective combat behavior. The agent 
 
 Quantitatively speaking, the one metric we care about the most is success rate, the rate at which we defeat the boss. While not explicitly shown in **Figure 2.1**, and with differing metrics in **Figure 2.2**, the graphs show the improvement in success rate over different iterations of reward shaping and training. **Figure 2.1** ends where the agent achieved its first victory. It took the agent ~70,000 steps to achieve this. In **Figure 2.2** it took noticeably less steps, while also achieving more successes (albeit not many) in a smaller overall time frame compared to **Figure 2.1**. In other words, our agent is learning faster and better now compared to when we first met our minimum goal of achieving one victory.
 
-<figure style="text-align: center;">
+<figure style="text-align: center; max-width:100%">
     <img src="assets/old_graphs.png">
     <figcaption>
         <small>
@@ -49,7 +49,7 @@ Quantitatively speaking, the one metric we care about the most is success rate, 
         </small>
     </figcaption>
 </figure>
-<figure style="text-align: center;">
+<figure style="text-align: center; max-width: 100%">
     <img src="assets/new_graphs.png">
     <figcaption>
         <small>

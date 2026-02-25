@@ -5,7 +5,7 @@ title:  Home
 <figure style="text-align: center;">
     <img src="assets/ds3.jpg" style="border-radius:20px; box-shadow: 0 5px 10px black;" width=500>
 </figure>
-
+<br>
 <div class="container" style="text-align: center;">
     ProximalSouls is a Proximal Policy Optimization (PPO) agent trained to defeat bosses in the notoriously difficult, genre defining <b>Dark Souls III</b>. The agent will learn to execute high-precision time-dependent actions in response to its environment, along with utilizing its resources efficiently, to take down challenging opponents.
 </div>
