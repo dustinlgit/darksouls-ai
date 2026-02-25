@@ -47,3 +47,9 @@ code {
 figure {
   margin: 0 20px !important;
 }
+
+.graph {
+  max-width: 700px;
+  width: 100%;
+  height: auto;
+}
