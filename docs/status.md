@@ -121,3 +121,9 @@ Lastly, we accidentally continued training on a model once when the frame captur
 - debugging codebase
 
 ## Video Summary
+
+<iframe
+    src="https://youtube.com/embed/lqRnJzHMX5Q"
+    style="width:100%; aspect-ratio: 16/9;"
+    allowfullscreen> 
+</iframe>
