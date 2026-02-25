@@ -39,40 +39,60 @@ The reward function is shaped to encourage effective combat behavior. The agent 
 
 ## Evaluation
 
+Quantitatively speaking, the one metric we care about the most is success rate, the rate at which we defeat the boss. While not explicitly shown in **Figure 2.1**, and with differing metrics in **Figure 2.2**, the graphs show the improvement in success rate over different iterations of reward shaping and training. **Figure 2.1** ends where the agent achieved its first victory. It took the agent ~70,000 steps to achieve this. In **Figure 2.2** it took noticeably less steps, while also achieving more successes (albeit not many) in a smaller overall time frame compared to **Figure 2.1**. In other words, our agent is learning faster and better now compared to when we first met our minimum goal of achieving one victory.
+
 <figure style="text-align: center;">
-    <img src="assets/qual_bad.gif">
+    <img src="assets/old_graphs.png">
     <figcaption>
         <small>
-            <i>Figure 2: Poor qualitative performance</i>
+            <i>Figure 2.1: Average Reward and Episode Length</i>
+        </small>
+    </figcaption>
+</figure>
+<figure style="text-align: center;">
+    <img src="assets/new_graphs.png">
+    <figcaption>
+        <small>
+            <i>Figure 2.2: Average Boss Damage Taken, Average Player Damage Dealt, Success Rate</i>
         </small>
     </figcaption>
 </figure>
 
 
-**Figure 2** shows an example of bad qualitative performance. The agent stays away from the boss, misses attacks (due to its distance), and mistimes dodge rolls, ending with the agent taking substantial damage while outputting none in return. This sort of bad qualitative performance is expected at the start of training, but as training moves forward, we use this visual qualitative analysis to shape the reward towards avoiding bad behavior. A common issue at the start was behavior similar to this short example even after training, which we were able to mitigate with different reward shaping.
+<figure style="text-align: center;">
+    <img src="assets/qual_bad.gif">
+    <figcaption>
+        <small>
+            <i>Figure 3: Poor qualitative performance</i>
+        </small>
+    </figcaption>
+</figure>
+
+
+**Figure 3** shows an example of bad qualitative performance. The agent stays away from the boss, misses attacks (due to its distance), and mistimes dodge rolls, ending with the agent taking substantial damage while outputting none in return. This sort of bad qualitative performance is expected at the start of training, but as training moves forward, we use this visual qualitative analysis to shape the reward towards avoiding bad behavior. A common issue at the start was behavior similar to this short example even after training, which we were able to mitigate with different reward shaping.
 
 <figure style="text-align: center;">
     <img src="assets/qual_good.gif">
     <figcaption>
         <small>
-            <i>Figure 3: Good qualitative performance</i>
+            <i>Figure 4: Good qualitative performance</i>
         </small>
     </figcaption>
 </figure>
 
-In contrast, **Figure 3** shows an example of good qualitative performance. The agent times rolls correctly and positions itself to avoid boss attacks. It no longer stays so far away from the boss that interaction is impossible. It attacks the boss and deals damage without putting itself at risk of taking too much damage in return. While not perfect gameplay, this behavior shows that our agent has learned to fight the boss in a more streamlined manner.
+In contrast, **Figure 4** shows an example of good qualitative performance after training. The agent times rolls correctly and positions itself to avoid boss attacks. It no longer stays so far away from the boss that interaction is impossible. It attacks the boss and deals damage without putting itself at risk of taking too much damage in return. While not perfect gameplay, this behavior shows that our agent has learned to fight the boss in a more streamlined manner.
 
 ## Remaining Goals and Challenges
 
-So far, it has been difficult shaping rewards in an agreeable way. One of our earliest issues was the agent refusing to get close to the boss, and if it did, refusing to attack the boss. We have resolved this now, but we still face other challenges. We have trained for several days, using many different evualtion mindsets to shape the rewards, but most of the time the agent starts to learn to prioritize one certain action since it yields a high reward. It most likely learns this behavior because, while killing the boss gives a very large reward, it's sparse, so the agent tries to maximize rewards by other means. To be more specific, there have been times where our model trained overnight only for the agent to be rolling around, and healing a lot, instead of taking offensive actions. At the moment, some overnight runs yield a success(es), meaning that our agent was able to defeat the boss. Although this is good, we still struggle with attaining a model with a consistent success rate, so we are still working on bridging the gap between occassional and consistent success.
+So far, it has been difficult shaping rewards in an agreeable way. One of our earliest issues was the agent refusing to get close to the boss, and if it did, refusing to attack the boss. We have resolved this now, but we still face other challenges. We have trained using many different evualtion mindsets to shape the rewards, but most of the time the agent starts to learn to prioritize one certain action since it yields a high reward. It most likely learns this behavior because, while killing the boss gives a very large reward, it's sparse, so the agent tries to maximize rewards by other means. To be more specific, there have been times where our model trained overnight only for the agent to be rolling around, and healing a lot, instead of taking offensive actions. At the moment, some overnight runs yield a success(es), meaning that our agent was able to defeat the boss. Although this is good, we still struggle with attaining a model with a consistent success rate, so we are still working on bridging the gap between occassional and consistent success.
 
-For that reason, our main goal for the rest of the quarter is to achieve high consistency in killing the boss. Time remains the greatest obstacle for us. There is no way to simulate *Dark Souls III* headlessly, so training time is limited to the speed at which the game can be played. It is a graphically intensive game making paralell training non-feasible. Another persistent issue will be the overfitting of agent behavior and its convergence on taking a small subset of actions.
+For that reason, our main goal for the rest of the quarter is to achieve high consistency in killing the boss. Time remains the greatest obstacle for us. Shaping behavior through rewards is very time intensive.There is no way to simulate *Dark Souls III* headlessly, so training time is limited to the speed at which the game can be played. It is a graphically intensive game making paralell training non-feasible. Another persistent issue will be the overfitting of agent behavior and its convergence on taking a small subset of actions.
 
-Regardless, we have several potential avenues to explore in order to optimize performance. Our actual goal for the agent to kill the boss is very sparse, so we may try a different training loop that allows the agent to replenish HP as it takes damage, but we would still give penalties corresponding to if the agent would have died or taken that damage. This way the agent can explore actions leading to our goal (boss death) consistently rather than on occassion, while detrimental actions retain their meaning.
+Regardless, we have several potential avenues to explore in order to optimize performance. Our actual goal for the agent to kill the boss is very sparse, so we may try a different training loop that allows the agent to replenish HP as it takes damage, but it would still incur penalties corresponding to if the agent would have died or taken that damage. This way the agent can explore actions leading to our goal (boss death) consistently rather than on occassion, while detrimental actions retain their meaning.
 
 Another possibility is breaking up our action space into a `MultiDiscrete` space, where movement and other actions (dodge, attack, heal) are separated into their own `Discrete` spaces, allowing the agent to perform more fine grained actions. This would probably cause training to take longer, but could lead to better convergence behavior.
 
-A potential issue to fix is how the environment handles time steps. Currently the agent chooses a new action at every step, but it doesn't always go through since *Dark Souls III* actions take a certain amount of time to execute. We have a flag in each observation passed to the agent that represents if an action follows through or not, but this is not a bulletproof method for teaching the agent. Our frame captures are also tied to each step, and that limits frame captures to ~4-8 frames per second. This is possibly not enough data to learn timing and action cues.
+A potential issue to fix is how the environment handles time steps. Currently the agent chooses a new action at every step, but it doesn't always go through since *Dark Souls III* actions take a certain amount of time to execute. We have a flag in each observation passed to the agent that represents if an action follows through or not, but this is not a bulletproof method for teaching the agent. Our frame captures are also tied to each step, and that limits frame captures to ~4-8 frames per second. This is possibly not enough data to learn timing and action cues. A way to induce an action lockout, and or capturing more frames per second could lead to faster training and final performance.
 
 Lastly, we accidentally continued training on a model once when the frame capture broke. Rewards plummeted steeply, but eventually recovered to baseline values over time. This leads to the possibility of training purely off of non-visual information retrieved from memory. This could provide insight as to the best way to approach reinforcement learning for *Dark Souls III*. Whether visual, scalar, or a mix of both is the most optimal approach.
 

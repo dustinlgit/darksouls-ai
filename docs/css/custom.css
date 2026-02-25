@@ -1,5 +1,9 @@
 /* Sticky footer styles
 -------------------------------------------------- */
+* {
+  box-sizing: border-box;
+}
+
 html {
   position: relative;
   min-height: 100%;
@@ -41,5 +45,5 @@ code {
 }
 
 figure {
-  margin: 0 20px important!;
+  margin: 0 20px !important;
 }
