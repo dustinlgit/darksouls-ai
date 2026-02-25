@@ -374,7 +374,6 @@ class DS3Env(gym.Env):
 # -- healing when alr healed 3x
             if self.heal_count > 3:
                 reward -= 0.06 * (self.heal_count - 3)
-        print("Heal Count (HP gained): ", self.heal_count)
         return reward
 
 
