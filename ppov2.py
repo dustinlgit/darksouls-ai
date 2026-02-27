@@ -6,25 +6,11 @@ import time
 import math
 
 from get_frame import get_one_frame
-from memory import DS3Reader, BOSSES, ANIMATIONS
+from memory import DS3Reader, BOSSES, ANIMATIONS, GUNDYR_ONE_HOT_ANIM
 import controller
 
 class DS3Env(gym.Env):
     MAX_DIST = 12
-
-    # Animation codes for actions. Used to see if an action actually went through.
-    ACT_TO_ANI = {
-        1: ANIMATIONS.LIGHT_ATTACK,
-        2: ANIMATIONS.LIGHT_ATTACK,
-        3: ANIMATIONS.DODGE,
-        4: ANIMATIONS.ROLL,
-        5: ANIMATIONS.MOVE,
-        6: ANIMATIONS.MOVE,
-        7: ANIMATIONS.MOVE,
-        8: ANIMATIONS.MOVE,
-        9: ANIMATIONS.HEAL
-    }
-
 
     def __init__(self):
         super().__init__()
@@ -38,11 +24,8 @@ class DS3Env(gym.Env):
 
         self.step_count = 0
         self.max_steps = 10000
-        self.action_space = spaces.Discrete(9)
-        self.observation_space = spaces.Dict({
-            'stats': spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32),
-            'frame': spaces.Box(low=0, high=255, shape=(128, 128, 1), dtype=np.uint8)
-        })
+        self.action_space = spaces.MultiDiscrete([4, 4])
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(29,), dtype=np.float32)
 
         self.heal_count = 0
 
@@ -107,51 +90,69 @@ class DS3Env(gym.Env):
         return obs, info
 
 
-    def do_action(self, a, duration=0.1):
-        '''core function for learning optimal actions'''
+    def do_action(self, actions):
+        move, act = actions
 
-        match a:
+        match move:
             case 0:
-                # No acation
-                time.sleep(duration)
+                controller.move_forward()
             case 1:
-                controller.right_hand_light_attack()
+                controller.move_back()
             case 2:
-                controller.dodge()
+                controller.move_left()
             case 3:
-                controller.forward_roll_dodge()
-            case 4:
-                controller.run_forward(duration)
-            case 5:
-                controller.run_back(duration)
-            case 6:
-                controller.run_right(duration)
-            case 7:
-                controller.run_left(duration)
-            case 8:
+                controller.move_right()
+
+        match act:
+            case 0:
+                controller.attack()
+            case 1:
+                controller.dodge()
+            case 2:
                 controller.heal()
+            case 3:
+                controller.no_action()
         
 
     def _get_observation(self, action):
         """Get current observation (stats + frame)"""
-        frame = get_one_frame()
         dist = math.dist(self.player.pos, self.boss.pos)
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
-        action_success = action == 0 or self.player.animation in self.ACT_TO_ANI[action]
 
-        stats = np.array(
-            [
-                self.player.norm_hp, 
-                self.player.norm_sp, 
-                self.boss.norm_hp,
-                norm_dist,
-                action_success
-            ], 
-            dtype=np.float32
-        )
+        player_anim = self._encode_player_anim(self.player.animation)
+        boss_anim = self._encode_boss_anim(self.boss.animation_str)
+        stats = np.array([
+            self.player.norm_hp, 
+            self.player.norm_sp, 
+            self.boss.norm_hp,
+            norm_dist,
+        ], dtype=np.float32)
 
 
-        return {'stats': stats, 'frame': frame}
+        return np.concatenate([player_anim, boss_anim, stats])
+
+    def _encode_player_anim(self, animation):
+        encoding = np.zeros(shape=(4,), dtype=np.float32)
+        if animation in ANIMATIONS.LIGHT_ATTACK:
+            encoding[0] = 1
+        elif animation in ANIMATIONS.HEAL:
+            encoding[1] = 1
+        elif animation in ANIMATIONS.DODGE:
+            encoding[2] = 1
+        else:
+            encoding[3] = 1
+        return encoding
+
+    
+    def _encode_boss_anim(self, animation_str):
+        encoding = np.zeros(shape=(21,), dtype=np.float32);
+        if animation_str in GUNDYR_ONE_HOT_ANIM:
+            anim = GUNDYR_ONE_HOT_ANIM[animation_str]
+        else:
+            anim = 20
+        encoding[anim] = 1
+        return encoding
+
     
 
     def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
@@ -194,25 +195,6 @@ class DS3Env(gym.Env):
         #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
         reward -= 0.005
         
-        if(action == 8):
-            # penalty for wasting flask when hp is high
-            HEAL_AMT = 250 #how much hp you get for healing
-            missing_hp = max(0.0, float(self.player.max_hp)) - float(self.player.hp)
-            wasted_flask = max(0.0, HEAL_AMT - missing_hp)
-            norm_wasted_flask = min(1.0, wasted_flask / HEAL_AMT)
-
-            hp_frac = float(self.player.hp) / float(self.player.max_hp)
-            #penalty for healing with high hp
-            if hp_frac > 0.65 : #since health potion is roughly half of the players hp
-                reward -= 0.5
-            #reward healing at low health
-            if hp_frac <= 0.45: #perfect percent for none wasted ...
-                reward += 0.5 * (1.0 - norm_wasted_flask)
-            
-            # penalty if healed 3+ times in the episode
-            self.heal_count+=1
-            if self.heal_count > 3:
-                reward -= 0.1 * (self.heal_count - 3) #lowered penalty
         return reward
 
 

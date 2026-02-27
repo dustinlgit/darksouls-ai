@@ -28,7 +28,8 @@ GUNDYR_ONE_HOT_ANIM = {
     "Attack3015": 15,
     "Attack3029": 16,
     "ThrowAttack0": 17,
+    "Attack1500": 18,
+    "SABreak": 19,
 }
-
 
 WORLD_CHR_MAN_PATTERN = b"\x48\x8B\x1D...\x04\x48\x8B\xF9\x48\x85\xDB..\x8B\x11\x85\xD2..\x8D"

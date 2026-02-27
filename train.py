@@ -46,7 +46,7 @@ if args.load:
     model = PPO.load(args.load, env=env)
 else: 
     model = PPO(
-        "MultiInputPolicy", 
+        "MlpPolicy", 
         env, 
         policy_kwargs=policy_kwargs,
         verbose=1, 

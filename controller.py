@@ -2,12 +2,64 @@ import vgamepad as vg
 import time
 import win32gui
 import win32con
+
+gamepad = vg.VX360Gamepad()
+
+STICK_VALUE = 0.8
+PRESS_DURATION = 0.05
+
+# --- Movement ---
+def no_action():
+    time.sleep(PRESS_DURATION)
+
+def move_neutral():
+    gamepad.left_joystick_float(x_value_float=0.0, y_value_float=0.0)
+    gamepad.update()
+
+def move_forward():
+    gamepad.left_joystick_float(x_value_float=0.0, y_value_float=STICK_VALUE)
+    gamepad.update()
+
+def move_back():
+    gamepad.left_joystick_float(x_value_float=0.0, y_value_float=-STICK_VALUE)
+    gamepad.update()
+
+def move_left():
+    gamepad.left_joystick_float(x_value_float=-STICK_VALUE, y_value_float=0.0)
+    gamepad.update()
+
+def move_right():
+    gamepad.left_joystick_float(x_value_float=STICK_VALUE, y_value_float=0.0)
+    gamepad.update()
+
+def attack():
+    gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER)
+    gamepad.update()
+    time.sleep(PRESS_DURATION)
+    gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER)
+    gamepad.update()
+
+def dodge():
+    gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
+    gamepad.update()
+    time.sleep(PRESS_DURATION)
+    gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
+    gamepad.update()
+
 def heal():
-    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
+    gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
     gamepad.update()
-    time.sleep(0.08)
-    gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
+    time.sleep(PRESS_DURATION)
+    gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
     gamepad.update()
+
+def release_all():
+    gamepad.left_joystick_float(x_value_float=0.0, y_value_float=0.0)
+    gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
+    gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER)
+    gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_DOWN)
+    gamepad.update()
+
     
 def keep_ds3_alive():
     hwnd = win32gui.FindWindow(None, "DARK SOULS III")
@@ -16,13 +68,47 @@ def keep_ds3_alive():
         # but does NOT take focus away from your current typing/work.
         win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
 
-# Initialize the virtual gamepad
-gamepad = vg.VX360Gamepad()
-
 def release_all_keys():
     """Reset gamepad state to neutral"""
     gamepad.reset()
     gamepad.update()
+
+
+def walk_to_boss():
+    release_all_keys()
+    # Run forward
+    move_forward()
+    time.sleep(1)
+    gamepad.reset()
+    gamepad.update()
+    for _ in range(2):
+        gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
+        gamepad.update()
+        time.sleep(0.1)
+        gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
+        gamepad.update()
+        time.sleep(1.0)
+    
+    move_forward()
+    time.sleep(6.5)
+    gamepad.reset()
+    gamepad.update()
+    # Lock on (RS Click)
+    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
+    gamepad.update()
+    time.sleep(0.1)
+    gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
+    gamepad.update()
+
+def boss_died_reset():
+    release_all_keys()
+    for _ in range(4):
+        gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
+        gamepad.update()
+        time.sleep(0.1)
+        gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
+        gamepad.update()
+        time.sleep(1.0)
 
 def right_hand_light_attack():
     # RB on Xbox
@@ -41,87 +127,3 @@ def forward_run_attack():
     time.sleep(0.1)
     gamepad.reset()
     gamepad.update()
-
-def dodge():
-    # Tap B
-    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
-    gamepad.update()
-    time.sleep(0.05)
-    gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
-    gamepad.update()
-
-def forward_roll_dodge():
-    # Forward + B
-    gamepad.left_joystick_float(x_value_float=0.0, y_value_float=1.0)
-    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
-    gamepad.update()
-    time.sleep(0.05)
-    gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
-    gamepad.update()
-
-def run_forward(sec):
-    # Forward + Hold B
-    gamepad.left_joystick_float(x_value_float=0.0, y_value_float=1.0)
-    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
-    gamepad.update()
-    time.sleep(sec)
-    gamepad.reset()
-    gamepad.update()
-
-def run_back(sec):
-    # Forward + Hold B
-    gamepad.left_joystick_float(x_value_float=0.0, y_value_float=-1.0)
-    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
-    gamepad.update()
-    time.sleep(sec)
-    gamepad.reset()
-    gamepad.update()
-
-def run_right(sec):
-    # Forward + Hold B
-    gamepad.left_joystick_float(x_value_float=1.0, y_value_float=0.0)
-    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
-    gamepad.update()
-    time.sleep(sec)
-    gamepad.reset()
-    gamepad.update()
-
-def run_left(sec):
-    # Forward + Hold B
-    gamepad.left_joystick_float(x_value_float=-1.0, y_value_float=0.0)
-    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
-    gamepad.update()
-    time.sleep(sec)
-    gamepad.reset()
-    gamepad.update()
-
-def walk_to_boss():
-    release_all_keys()
-    # Run forward
-    run_forward(1.0)
-    # Interact (A Button)
-    for _ in range(2):
-        gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
-        gamepad.update()
-        time.sleep(0.1)
-        gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
-        gamepad.update()
-        time.sleep(1.0)
-    
-    run_forward(5.0)
-    # Lock on (RS Click)
-    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
-    gamepad.update()
-    time.sleep(0.1)
-    gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
-    gamepad.update()
-
-def boss_died_reset():
-    release_all_keys()
-    for _ in range(4):
-        gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
-        gamepad.update()
-        time.sleep(0.1)
-        gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
-        gamepad.update()
-        time.sleep(1.0)

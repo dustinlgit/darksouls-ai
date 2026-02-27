@@ -19,6 +19,8 @@ class Entity:
         self._y_addr = pos_addr + 0x78
         
         self._animation_addr = reader.follow_chain(addr, [0x80]) + 0xC8
+        self._animation_str_addr = reader.follow_chain(addr, [0x28]) + 0x898
+        self._animation_time_addr = reader.follow_chain(addr, [0x10])
 
 
     @property
@@ -74,3 +76,16 @@ class Entity:
     @property
     def animation(self):
         return self.reader.ds3.read_int(self._animation_addr)
+
+    @property
+    def animation_str(self):
+        str = self.reader.ds3.read_bytes(self._animation_str_addr, 20).decode()
+        if "SABreak" in str:
+            return "SABreak"
+        return str
+    
+    @property
+    def animation_prog(self):
+        curr = self.reader.ds3.read_float(self._animation_time_addr + 0x24)
+        max = self.reader.ds3.read_float(self._animation_time_addr + 0x2C)
+        return curr / max
