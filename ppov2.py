@@ -1,3 +1,4 @@
+from collections import deque
 import gymnasium as gym
 from gymnasium import spaces
 
@@ -55,8 +56,7 @@ class DS3Env(gym.Env):
         self.max_steps = 10000
         self.action_space = spaces.Discrete(9)
         self.observation_space = spaces.Dict({
-            'stats': spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
-            'frame': spaces.Box(low=0, high=255, shape=(128, 128, 1), dtype=np.uint8)
+            "stats": spaces.Box(low=-1.0, high=1.0, shape=(7,), dtype=np.float32),
         })
         
         self.ep_boss_dmg = 0
@@ -64,66 +64,66 @@ class DS3Env(gym.Env):
         self.prev_player_hp = None
         self.prev_boss_hp = None
 
-        self.heal_count = 0
-        self.heal_cooldown = 0
-        self.steps_since_damage = 0
+        self.heal_cd = 0
+        self.step_dt = 0.35
 
     def step(self, action):
         try:
-            #self.ds3.initialize()
+            t0 = time.time()
+
             self.ds3.ensure_attached()
 
-            # only rebuild pointers/entities if we marked them dirty
             if self.needs_refresh or self.player is None or self.boss is None:
                 self.ds3.refresh()
                 self.player = self.ds3.player
                 self.boss = self.ds3.boss
                 self.needs_refresh = False
 
-            prev_player_norm_hp = self.player.norm_hp
-            prev_boss_norm_hp = self.boss.norm_hp
-    
+            prev_player_norm_hp = float(self.player.norm_hp)
+            prev_boss_norm_hp   = float(self.boss.norm_hp)
+
+            prev_norm_dist = float(min(self._safe_dist(), self.MAX_DIST) / self.MAX_DIST)
+
+            prev_player_hp_abs = float(self.player.hp)
+            prev_boss_hp_abs   = float(self.boss.hp)
+
             self.do_action(action)
-            ani = self._safe_animation(default=None)
-            expected = self.ACT_TO_ANI.get(action, [])
-            hp_gain_abs = max(0.0, float(self.player.hp) - float(self.prev_player_hp or float(self.player.hp)))
-            if ani in expected:
-                if ani in ANIMATIONS.HEAL:
-                    print(f"[SUCCESS] HEAL (ani={ani}) | action={action}")
-                elif ani in ANIMATIONS.LIGHT_ATTACK:
-                    print(f"[SUCCESS] ATTACK (ani={ani}) | action={action}")
-                elif ani in ANIMATIONS.ROLL:
-                    print(f"[SUCCESS] ROLL (ani={ani}) | action={action}")
-                elif ani in ANIMATIONS.DODGE:
-                    print(f"[SUCCESS] DODGE (ani={ani}) | action={action}")
-                if hp_gain_abs > 100:
-                    print(f"[HP_JUMP] +{hp_gain_abs:.1f} hp | action={action} | ani={ani}")
 
-            new_p = float(self.player.hp)
-            new_b = float(self.boss.hp)
+            elapsed = time.time() - t0
+            remaining = self.step_dt - elapsed
+            if remaining > 0:
+                time.sleep(remaining)
+            boss_norm_min = float(self.boss.norm_hp)
+            player_norm_min = float(self.player.norm_hp)
+            for _ in range(6):          # ~0.12s
+                time.sleep(0.02)
+                boss_norm_min = min(boss_norm_min, float(self.boss.norm_hp))
+                player_norm_min = min(player_norm_min, float(self.player.norm_hp))
+            new_player_hp_abs = float(self.player.hp)
+            new_boss_hp_abs   = float(self.boss.hp)
 
-            p_dmg = max(0.0, self.prev_player_hp - new_p) if self.prev_player_hp is not None else 0.0
-            b_dmg = max(0.0, self.prev_boss_hp - new_b) if self.prev_boss_hp is not None else 0.0
+            p_dmg = max(0.0, prev_player_hp_abs - new_player_hp_abs)
+            b_dmg = max(0.0, prev_boss_hp_abs - new_boss_hp_abs)
 
             if p_dmg < 1500:
                 self.ep_player_dmg += p_dmg
             if b_dmg < 1500:
                 self.ep_boss_dmg += b_dmg
 
-            self.prev_player_hp = new_p
-            self.prev_boss_hp = new_b
+            self.prev_player_hp = new_player_hp_abs
+            self.prev_boss_hp = new_boss_hp_abs
 
-            obs = self._get_observation(action)
-
-            reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action)
-
+            obs = self._get_observation(prev_player_norm_hp, prev_boss_norm_hp, prev_norm_dist)
+            reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, player_norm_min, boss_norm_min, action)
 
             self.step_count += 1
 
             terminated = (self.player.hp <= 0) or (self.boss.hp <= 0)
             truncated = (self.step_count >= self.max_steps)
+
             if terminated or truncated:
                 self.needs_refresh = True
+
             info = {
                 "player_hp": self.player.hp,
                 "boss_hp": self.boss.hp,
@@ -137,7 +137,7 @@ class DS3Env(gym.Env):
             self.needs_refresh = True
             self.player = None
             self.boss = None
-            obs = self._get_observation(action=0)
+            obs = self._get_observation(prev_player_norm_hp, prev_boss_norm_hp, prev_norm_dist)
 
             info = {
                 "memory_error": True,
@@ -183,9 +183,7 @@ class DS3Env(gym.Env):
         self.ep_boss_dmg = 0.0
         self.ep_player_dmg = 0.0
 
-        self.heal_count = 0
-        self.heal_cooldown = 0
-        self.steps_since_damage = 0
+        self.heal_cd = 0
         
         self._wait_until_loaded()
         self._reset_mem()
@@ -200,10 +198,14 @@ class DS3Env(gym.Env):
         
         self.step_count = 0
         self.boss_defeated = False
+        self.step_dt = 0.35
         
         print(f"Reset complete")
-
-        obs = self._get_observation(action=0)
+        prev_player_norm_hp = self.player.norm_hp
+        prev_boss_norm_hp = self.boss.norm_hp
+        dist_to_boss = self._safe_dist()
+        prev_norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
+        obs = self._get_observation(prev_player_norm_hp, prev_boss_norm_hp, prev_norm_dist)
         info = {
             "player_hp": self.player.hp,
             "boss_hp": self.boss.hp
@@ -259,123 +261,52 @@ class DS3Env(gym.Env):
         except Exception:
             return default
         
-    def _get_observation(self, action):
+    def _get_observation(self, prev_player_norm_hp, prev_boss_norm_hp, prev_norm_dist):
         """Get current observation (stats + frame)"""
-        frame = get_one_frame(self.ds3)
         dist = self._safe_dist()
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
-        ani = self._safe_animation(default=None)
-        heals_left = max(0.0, 3.0 - float(self.heal_count))
-        heals_left_frac = heals_left / 3.0
-        if action == 0:
-            action_success = 1.0
-        else:
-            expected = self.ACT_TO_ANI.get(action, [])
-            action_success = 1.0 if (ani is not None and ani in expected) else 0.0
+        norm_dist = float(np.clip(norm_dist, 0.0, 1.0))
+
+        player_norm_hp = float(self._safe_read(lambda: self.player.norm_hp, 0.0))
+        player_norm_sp = float(self._safe_read(lambda: self.player.norm_sp, 0.0))
+        boss_norm_hp   = float(self._safe_read(lambda: self.boss.norm_hp, 0.0))
+
+        d_player_hp = float(np.clip(player_norm_hp - prev_player_norm_hp, -1.0, 1.0))
+        d_boss_hp   = float(np.clip(prev_boss_norm_hp - boss_norm_hp, -1.0, 1.0))  # >0 means boss took damage
+        d_dist      = float(np.clip(norm_dist - prev_norm_dist, -1.0, 1.0))
+
         stats = np.array(
             [
-                self._safe_read(lambda: self.player.norm_hp, 0.0),
-                self._safe_read(lambda: self.player.norm_sp, 0.0),
-                self._safe_read(lambda: self.boss.norm_hp, 0.0),
+                player_norm_hp,
+                player_norm_sp,
+                boss_norm_hp,
                 norm_dist,
-                action_success,
-                heals_left_frac
-            ], 
+                d_player_hp,
+                d_boss_hp,
+                d_dist,
+            ],
             dtype=np.float32
         )
 
-
-        return {'stats': stats, 'frame': frame}
+        return {"stats": stats}
     
-    def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
-        """Calculate reward based on state changes"""
-        ATTACK_ACT = (1,)
-        DEFENSE_ACT = (2,3)
-        HEAL = (8,)
-
+    def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, player_norm_min, boss_norm_min, action):
         reward = 0.0
-        # Reward for dealing damage to boss
-        boss_damage = prev_boss_norm_hp - self.boss.norm_hp
-        dist_to_boss = self._safe_dist()
-        norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
-        player_norm_hp = float(self.player.norm_hp)
-        hp_gain = max(0.0,  player_norm_hp - prev_player_norm_hp)
-        player_hp = self.player.hp
-        boss_hp = self.boss.hp
+        dealt = max(0.0, float(prev_boss_norm_hp) - float(boss_norm_min))
+        taken = max(0.0, float(prev_player_norm_hp) - float(player_norm_min))
 
-        if boss_damage > 0:
-            if 0.25 <= norm_dist <= 0.55: #moved position reward into only getting it if u dmg boss
-                reward += 0.01
-            self.steps_since_damage = 0
-            reward += boss_damage * 12 #inc
-            #reward good attacking (damages boss with action)
-            if action in ATTACK_ACT:
-                reward += 0.10
-            # if player_norm_hp < 0.30: #force heal discourage attack at low hp, commented out because this might cause them to not attack at all when low hp even though it might be critical
-            #     reward -= 0.05
-        else:
-            self.steps_since_damage += 1
-            max_pen  = 0.01
-            scalar = 0.0005
-            reward -= min(max_pen, scalar * self.steps_since_damage)
-        if action in ATTACK_ACT:
-            if norm_dist <= 0.30:
-                reward += 0.03
-            else:
-                reward -= 0.03  # bigger whiff penalty than -0.01
+        # ++ aggressive 
+        reward = 12.0 * dealt - 6.0 * taken
 
-            # penalty for attacking when low hp and we have potions
-            if player_norm_hp < 0.35 and self.heal_count < 3:
-                reward -= 0.20
-        
-        # Penalty for taking damage
-        player_damage = prev_player_norm_hp - player_norm_hp
-        if player_damage > 0:
-            low_hp_scale = 1.0 + (1.0 - player_norm_hp) * 2.0 #1-2
-            reward -= player_damage * 6 * low_hp_scale #increased by 3
-        
-        # Large reward for killing boss
-        if boss_hp <= 0:
-            reward += 30
-        
-        # Eh penalty for dying
-        if player_hp <= 0:
-            reward -= 6 
+        # -- anti-stall
+        reward -= 0.002
 
-        # better stamina rewards that slowly discourages high sp use
-        sp_frac = 0.0
-        if float(self.player.max_sp) > 0:
-            sp_frac = float(self.player.sp) / max(1.0, float(self.player.max_sp))
-        if sp_frac < 0.10:
-            reward -= 0.02
-        if self.player.sp <= 0:
-            reward -= 0.03
-            
-        if hp_gain > 0:
-            # penalty for wasting flask when hp is high
-            self.heal_count += 1
-            HEAL_AMT = 250
-            missing_hp = max(0.0, (float(self.player.max_hp) - float(player_hp)))
-            wasted_flask = max(0.0, HEAL_AMT - missing_hp)
-            norm_wasted_flask = min(1.0, wasted_flask / HEAL_AMT)
-            if player_damage > 0:
-                reward -= 0.4
-            else:
-                reward += 0.2
-            # VALID hp num
-            if(float(self.player.max_hp) > 0):
-                hp_frac = float(player_hp) / max(1, float(self.player.max_hp))
-# -- healing at high hp
-                if hp_frac > 0.65 : 
-                    reward -= 0.2
-# ++ healing at low hp
-                if hp_frac <= 0.40:
-                    reward += 0.15 * (1.0 - norm_wasted_flask)
-# -- healing when alr healed 3x
-            if self.heal_count > 3:
-                reward -= 0.06 * (self.heal_count - 3)
+        if self.boss.hp <= 0:   reward += 15.0
+        if self.player.hp <= 0: reward -= 15.0
+
+        return float(reward)
+
         return reward
-
 
     def _reset_mem(self):
         self.ds3.initialize()

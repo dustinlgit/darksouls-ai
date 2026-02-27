@@ -14,13 +14,11 @@ import win32gui
 
 DS3_EXE = "DarkSoulsIII.exe"
 
-# Add/remove names based on what you actually see in Task Manager
 KILL_THESE = {
     "darksoulsiii.exe",
-    "me3_launcher.exe",     # if it exists
-    "me3_mod_host.exe",     # if it exists
-    "me3.exe",              # if it exists
-    "steamwebhelper.exe",   # usually don't kill steam; remove if you added it
+    "me3_launcher.exe",
+    "me3_mod_host.exe",
+    "me3.exe"
 }
 
 def _kill_by_name(names, timeout=8.0):
