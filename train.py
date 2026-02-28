@@ -43,7 +43,7 @@ checkpoint = CheckpointCallback(
 )
 
 if args.load:
-    model = PPO.load(args.load, env=env)
+    model = PPO.load(args.load, env=env, device="cpu")
 else: 
     model = PPO(
         "MlpPolicy", 
