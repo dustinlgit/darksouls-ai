@@ -51,14 +51,17 @@ else:
         policy_kwargs=policy_kwargs,
         verbose=1, 
         n_steps=1024,
-        device="cuda",
-        tensorboard_log="./ppo_ds3_logs"
+        learning_rate=1e-4,
+        gamma=0.995,
+        gae_lambda=0.925,
+        n_epochs=5,
+        ent_coef=0.01,
+        device="cpu",
+        tensorboard_log="./logs"
     )
 
-eval_env = DummyVecEnv([make_env])
-eval_env = VecFrameStack(eval_env, n_stack=4, channels_order="last")
 eval_cb = EvalCallback(
-    eval_env,
+    env,
     best_model_save_path="./models/best_eval",
     log_path="./models/eval_logs",
     eval_freq=10_000,
@@ -106,7 +109,7 @@ try:
     print("Begin training")
     win_cb = winRate(window_size=100)
 
-    model.learn(args.steps, callback=[checkpoint, eval_cb, win_cb])
+    model.learn(args.steps, callback=[checkpoint, eval_cb, win_cb], reset_num_timesteps=False)
 except KeyboardInterrupt:
     print("Training cancelled...")
-    model.save(f"./models/{datetime.now().strftime('%Y-%m-%d@%H:%M')}")
+    model.save(f"./models/{datetime.now().strftime('%Y-%m-%d-%H-%M')}")

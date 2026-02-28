@@ -5,12 +5,14 @@ import numpy as np
 import time
 import math
 
-from get_frame import get_one_frame
 from memory import DS3Reader, BOSSES, ANIMATIONS, GUNDYR_ONE_HOT_ANIM
 import controller
 
 class DS3Env(gym.Env):
+    SPEED = 2
     MAX_DIST = 12
+    FRAME_SKIP = 4
+    FRAME_DELAY = FRAME_SKIP / 60 / 2
 
     def __init__(self):
         super().__init__()
@@ -24,8 +26,8 @@ class DS3Env(gym.Env):
 
         self.step_count = 0
         self.max_steps = 10000
-        self.action_space = spaces.MultiDiscrete([4, 4])
-        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(29,), dtype=np.float32)
+        self.action_space = spaces.MultiDiscrete([5, 4])
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(30,), dtype=np.float32)
 
         self.heal_count = 0
 
@@ -34,8 +36,12 @@ class DS3Env(gym.Env):
         prev_boss_norm_hp = self.boss.norm_hp
         
         self.do_action(action)
-        obs = self._get_observation(action)
-        reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action)
+        if action[1] == 2 and self.estus > 0:
+            self.estus -= 1
+        time.sleep(self.FRAME_DELAY)
+
+        obs = self._get_observation()
+        reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action[1])
         terminated = self.player.hp <= 0 or self.boss.hp <= 0
         truncated = self.step_count >= self.max_steps
 
@@ -61,7 +67,7 @@ class DS3Env(gym.Env):
         controller.keep_ds3_alive()
         
         # Release all keys first to ensure clean state
-        controller.release_all_keys()
+        controller.release_all()
         time.sleep(1)
         
         if self.boss and self.boss.hp <= 0:
@@ -74,14 +80,15 @@ class DS3Env(gym.Env):
         self._reset_mem()
         
         print("Walking to boss...")
-        controller.walk_to_boss()
+        controller.walk_to_boss(self.SPEED)
         
         self.step_count = 0
         self.boss_defeated = False
+        self.estus = 3
         
         print(f"Reset complete")
 
-        obs = self._get_observation(action=0)
+        obs = self._get_observation()
         info = {
             "player_hp": self.player.hp,
             "boss_hp": self.boss.hp
@@ -113,8 +120,9 @@ class DS3Env(gym.Env):
             case 3:
                 controller.no_action()
         
+        
 
-    def _get_observation(self, action):
+    def _get_observation(self):
         """Get current observation (stats + frame)"""
         dist = math.dist(self.player.pos, self.boss.pos)
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
@@ -131,16 +139,19 @@ class DS3Env(gym.Env):
 
         return np.concatenate([player_anim, boss_anim, stats])
 
+
     def _encode_player_anim(self, animation):
-        encoding = np.zeros(shape=(4,), dtype=np.float32)
+        encoding = np.zeros(shape=(5,), dtype=np.float32)
         if animation in ANIMATIONS.LIGHT_ATTACK:
             encoding[0] = 1
         elif animation in ANIMATIONS.HEAL:
             encoding[1] = 1
         elif animation in ANIMATIONS.DODGE:
             encoding[2] = 1
-        else:
+        elif animation in ANIMATIONS.MOVE or animation in ANIMATIONS.IDLE:
             encoding[3] = 1
+        else:
+            encoding[4] = 1
         return encoding
 
     
@@ -155,47 +166,32 @@ class DS3Env(gym.Env):
 
     
 
-    def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
+    def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action=3):
         """Calculate reward based on state changes"""
         reward = 0.0
         
-        # Reward for dealing damage to boss
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
-        if boss_damage > 0:
-            reward += boss_damage * 3 #increased
-        
-        # Penalty for taking damage
         player_damage = prev_player_norm_hp - self.player.norm_hp
-        if player_damage > 0:
-            reward -= player_damage * 2 #increased
 
-        # Add penalty for being too far away; ~3 units is the
-        #  attack range so little more leeway before penalty
-        dist_to_boss = math.dist(self.player.pos, self.boss.pos)
-        norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
-        if norm_dist > 0.5:
-            reward -= 0.05 * (norm_dist - 0.50) / 0.50 #larger penalty for being farther away vs close
+        reward += boss_damage * 10
+        reward -= player_damage * 8
 
-        #add reward for being close to fight
-        if norm_dist < 0.35:
-            reward += 0.002
-        
-        # Large reward for killing boss
+        if action == 2 and self.estus == 0:
+            reward -= 0.5
+
         if self.boss.hp <= 0:
-            reward += 10
+            reward += 5
         
-        # Large penalty for dying
+        if self.boss.norm_hp < 0.5:
+            reward += 0.01
+        
         if self.player.hp <= 0:
-            reward -= 2
+            reward -= 5
 
-        if self.player.sp <= 0:
+        if self.player.sp <= 15:
             reward -= 0.01
 
-        
-        #pressure to quickly punish boss instead of rewarding random rolling and surviving actions
-        reward -= 0.005
-        
-        return reward
+        return reward        
 
 
     def _reset_mem(self):

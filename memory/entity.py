@@ -79,10 +79,13 @@ class Entity:
 
     @property
     def animation_str(self):
-        str = self.reader.ds3.read_bytes(self._animation_str_addr, 20).decode()
-        if "SABreak" in str:
-            return "SABreak"
-        return str
+        try:
+            str = self.reader.ds3.read_bytes(self._animation_str_addr, 20).decode()
+            if "SABreak" in str:
+                return "SABreak"
+            return str
+        except Exception:
+            return "StringReadError"
     
     @property
     def animation_prog(self):

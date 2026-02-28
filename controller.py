@@ -6,7 +6,7 @@ import win32con
 gamepad = vg.VX360Gamepad()
 
 STICK_VALUE = 0.8
-PRESS_DURATION = 0.05
+PRESS_DURATION = 1 / 60
 
 # --- Movement ---
 def no_action():
@@ -53,13 +53,6 @@ def heal():
     gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
     gamepad.update()
 
-def release_all():
-    gamepad.left_joystick_float(x_value_float=0.0, y_value_float=0.0)
-    gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
-    gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER)
-    gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_DOWN)
-    gamepad.update()
-
     
 def keep_ds3_alive():
     hwnd = win32gui.FindWindow(None, "DARK SOULS III")
@@ -68,40 +61,39 @@ def keep_ds3_alive():
         # but does NOT take focus away from your current typing/work.
         win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
 
-def release_all_keys():
-    """Reset gamepad state to neutral"""
+def release_all():
     gamepad.reset()
     gamepad.update()
 
 
-def walk_to_boss():
-    release_all_keys()
+def walk_to_boss(speed):
+    release_all()
     # Run forward
     move_forward()
-    time.sleep(1)
+    time.sleep(1.5 / speed)
     gamepad.reset()
     gamepad.update()
-    for _ in range(2):
+    for _ in range(4):
         gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
         gamepad.update()
-        time.sleep(0.1)
+        time.sleep(0.1 / speed)
         gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
         gamepad.update()
-        time.sleep(1.0)
+        time.sleep(1.0 / speed)
     
     move_forward()
-    time.sleep(6.5)
+    time.sleep(6.5 / speed)
     gamepad.reset()
     gamepad.update()
     # Lock on (RS Click)
     gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
     gamepad.update()
-    time.sleep(0.1)
+    time.sleep(0.1 / speed)
     gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
     gamepad.update()
 
 def boss_died_reset():
-    release_all_keys()
+    release_all()
     for _ in range(4):
         gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
         gamepad.update()
