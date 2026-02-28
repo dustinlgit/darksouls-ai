@@ -1,11 +1,17 @@
 /* Sticky footer styles
 -------------------------------------------------- */
+* {
+  box-sizing: border-box;
+}
+
 html {
   position: relative;
   min-height: 100%;
 }
 body {
   /* Margin bottom by footer height */
+  margin-left: 40px;
+  margin-right: 40px;
   margin-bottom: 60px;
 }
 .footer {
@@ -23,7 +29,7 @@ body {
 /* Not required for template or sticky footer method. */
 
 body > .container {
-  padding: 60px 15px 0;
+  padding: 60px 5vw 0;
 }
 .container .text-muted {
   margin: 20px 0;
@@ -36,4 +42,14 @@ body > .container {
 
 code {
   font-size: 80%;
+}
+
+figure {
+  margin: 0 20px !important;
+}
+
+.graph {
+  max-width: 700px;
+  width: 100%;
+  height: auto;
 }
