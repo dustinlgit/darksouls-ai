@@ -86,7 +86,7 @@ def walk_to_boss(speed):
         time.sleep(1.0 / speed)
     
     move_forward()
-    #time.sleep(6.5 / speed)
+    time.sleep(6.5 / speed)
     gamepad.reset()
     gamepad.update()
     # Lock on (RS Click)
