@@ -9,7 +9,7 @@ from memory import DS3Reader, BOSSES, ANIMATIONS, GUNDYR_ONE_HOT_ANIM
 import controller
 
 class DS3Env(gym.Env):
-    SPEED = 2
+    SPEED = 1
     MAX_DIST = 12
     FRAME_SKIP = 4
     FRAME_DELAY = FRAME_SKIP / 60 / 2
@@ -35,10 +35,18 @@ class DS3Env(gym.Env):
         prev_player_norm_hp = self.player.norm_hp
         prev_boss_norm_hp = self.boss.norm_hp
         
+        controller.release_all()
         self.do_action(action)
-        if action[1] == 2 and self.estus > 0:
-            self.estus -= 1
+
         time.sleep(self.FRAME_DELAY)
+        cur = self.player.animation
+        healing_now = cur in ANIMATIONS.HEAL
+        healing_prev = self.prev_animation in ANIMATIONS.HEAL if self.prev_animation is not None else False
+
+        if healing_now and not healing_prev and self.estus > 0:
+            self.estus -= 1
+            
+        self.prev_animation = cur
 
         obs = self._get_observation()
         reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action[1])
@@ -85,6 +93,7 @@ class DS3Env(gym.Env):
         self.step_count = 0
         self.boss_defeated = False
         self.estus = 3
+        self.prev_animation = None
         
         print(f"Reset complete")
 

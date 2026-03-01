@@ -19,18 +19,22 @@ def move_neutral():
 def move_forward():
     gamepad.left_joystick_float(x_value_float=0.0, y_value_float=STICK_VALUE)
     gamepad.update()
+    time.sleep(PRESS_DURATION)
 
 def move_back():
     gamepad.left_joystick_float(x_value_float=0.0, y_value_float=-STICK_VALUE)
     gamepad.update()
+    time.sleep(PRESS_DURATION)
 
 def move_left():
     gamepad.left_joystick_float(x_value_float=-STICK_VALUE, y_value_float=0.0)
     gamepad.update()
+    time.sleep(PRESS_DURATION)
 
 def move_right():
     gamepad.left_joystick_float(x_value_float=STICK_VALUE, y_value_float=0.0)
     gamepad.update()
+    time.sleep(PRESS_DURATION)
 
 def attack():
     gamepad.press_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER)
@@ -82,7 +86,7 @@ def walk_to_boss(speed):
         time.sleep(1.0 / speed)
     
     move_forward()
-    time.sleep(6.5 / speed)
+    #time.sleep(6.5 / speed)
     gamepad.reset()
     gamepad.update()
     # Lock on (RS Click)
