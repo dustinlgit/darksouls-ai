@@ -7,6 +7,7 @@ import math
 
 from memory import DS3Reader, BOSSES, ANIMATIONS, GUNDYR_ONE_HOT_ANIM
 import controller
+import open 
 
 class DS3Env(gym.Env):
     SPEED = 1
@@ -39,13 +40,15 @@ class DS3Env(gym.Env):
         self.do_action(action)
 
         time.sleep(self.FRAME_DELAY)
+        controller.release_all()
+
         cur = self.player.animation
         healing_now = cur in ANIMATIONS.HEAL
         healing_prev = self.prev_animation in ANIMATIONS.HEAL if self.prev_animation is not None else False
 
         if healing_now and not healing_prev and self.estus > 0:
             self.estus -= 1
-            
+
         self.prev_animation = cur
 
         obs = self._get_observation()
@@ -118,6 +121,10 @@ class DS3Env(gym.Env):
                 controller.move_left()
             case 3:
                 controller.move_right()
+            case 4: 
+                controller.move_neutral()
+            case _: 
+                controller.move_neutral()
 
         match act:
             case 0:
@@ -127,6 +134,8 @@ class DS3Env(gym.Env):
             case 2:
                 controller.heal()
             case 3:
+                controller.no_action()
+            case _: 
                 controller.no_action()
         
         
@@ -214,8 +223,9 @@ class DS3Env(gym.Env):
         try:
             while self.player.y < 600:
                 self.ds3.initialize()
-        except Exception:
-            ...
+        except Exception as err:
+            print("_wait_until_teleported:", err)
+            open.enter_game()
         time.sleep(5)
 
 
@@ -225,7 +235,7 @@ class DS3Env(gym.Env):
                 self.ds3.initialize()
                 if self.ds3.player.animation in ANIMATIONS.IDLE:
                     break
-            except Exception:
-                ...
-
+            except Exception as err:
+                print("_wait_until_loaded:", err)
+                open.enter_game()
         time.sleep(1.5)

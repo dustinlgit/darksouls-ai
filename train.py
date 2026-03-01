@@ -109,7 +109,7 @@ try:
     print("Begin training")
     win_cb = winRate(window_size=100)
 
-    model.learn(args.steps, callback=[checkpoint, eval_cb, win_cb], reset_num_timesteps=False)
+    model.learn(args.steps, callback=[checkpoint, win_cb], reset_num_timesteps=False)
 except KeyboardInterrupt:
     print("Training cancelled...")
     model.save(f"./models/{datetime.now().strftime('%Y-%m-%d-%H-%M')}")
