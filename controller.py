@@ -95,6 +95,7 @@ def walk_to_boss(speed):
     time.sleep(0.1 / speed)
     gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
     gamepad.update()
+    release_all()
 
 def boss_died_reset():
     release_all()
@@ -105,6 +106,7 @@ def boss_died_reset():
         gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
         gamepad.update()
         time.sleep(1.0)
+    release_all()
 
 def right_hand_light_attack():
     # RB on Xbox

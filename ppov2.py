@@ -41,39 +41,43 @@ class DS3Env(gym.Env):
         return d
     
     def step(self, action):
-        prev_player_norm_hp = self.player.norm_hp
-        prev_boss_norm_hp = self.boss.norm_hp
-        
-        controller.release_all()
-        self.do_action(action)
+        try:
+            prev_player_norm_hp = self.player.norm_hp
+            prev_boss_norm_hp = self.boss.norm_hp
+            
+            controller.release_all()
+            self.do_action(action)
 
-        time.sleep(self.FRAME_DELAY)
-        controller.release_all()
+            time.sleep(self.FRAME_DELAY)
+            controller.release_all()
 
-        cur = self.player.animation
-        healing_now = cur in ANIMATIONS.HEAL
-        healing_prev = self.prev_animation in ANIMATIONS.HEAL if self.prev_animation is not None else False
+            cur = self.player.animation
+            healing_now = cur in ANIMATIONS.HEAL
+            healing_prev = self.prev_animation in ANIMATIONS.HEAL if self.prev_animation is not None else False
 
-        if healing_now and not healing_prev and self.estus > 0:
-            self.estus -= 1
+            if healing_now and not healing_prev and self.estus > 0:
+                self.estus -= 1
 
-        self.prev_animation = cur
+            self.prev_animation = cur
 
-        obs = self._get_observation()
-        reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action[1])
-        terminated = self.player.hp <= 0 or self.boss.hp <= 0
-        truncated = self.step_count >= self.max_steps
+            obs = self._get_observation()
+            reward = self._calculate_reward(prev_player_norm_hp, prev_boss_norm_hp, action[1])
+            terminated = self.player.hp <= 0 or self.boss.hp <= 0
+            truncated = self.step_count >= self.max_steps
 
-        self.step_count += 1
-        
-        info = {
-            'player_hp': self.player.hp,
-            'boss_hp': self.boss.hp,
-            'is_success': bool(self.boss.hp <= 0 and self.player.hp > 0)
-        }
-        
-        #self.ds3.ds3.write_int(self.boss._hp_addr, 0)
-        return obs, reward, terminated, truncated, info
+            self.step_count += 1
+            
+            info = {
+                'player_hp': self.player.hp,
+                'boss_hp': self.boss.hp,
+                'is_success': bool(self.boss.hp <= 0 and self.player.hp > 0)
+            }
+            
+            #self.ds3.ds3.write_int(self.boss._hp_addr, 0)
+            return obs, reward, terminated, truncated, info
+        except:
+            controller.open.enter_game()
+            self.step(action)
     
 
     def render(self):
@@ -97,22 +101,22 @@ class DS3Env(gym.Env):
         
         self._wait_until_loaded()
         self._reset_mem()
+        print("SUCCCESS: _wait_until_loaded & _reset_mem")
         
-        print("Walking to boss...")
         controller.walk_to_boss(self.SPEED)
+        print("SUCCCESS: walk_to_boss")
         
         self.step_count = 0
         self.boss_defeated = False
         self.estus = 3
         self.prev_animation = None
-        
-        print(f"Reset complete")
 
         obs = self._get_observation()
         info = {
             "player_hp": self.player.hp,
             "boss_hp": self.boss.hp
         }
+        print("SUCCCESS: _get_observation")
 
         return obs, info
 
@@ -238,7 +242,7 @@ class DS3Env(gym.Env):
             while self.player.y < 600:
                 self.ds3.initialize()
         except Exception as err:
-            print("_wait_until_teleported:", err)
+            ... #print("_wait_until_teleported:", err)
         time.sleep(5)
 
 
@@ -249,5 +253,5 @@ class DS3Env(gym.Env):
                 if self.ds3.player.animation in ANIMATIONS.IDLE:
                     break
             except Exception as err:
-                print("_wait_until_loaded:", err)
+                ...#print("_wait_until_loaded:", err)
         time.sleep(1.5)
