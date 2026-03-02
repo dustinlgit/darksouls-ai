@@ -53,6 +53,16 @@ def heal():
     gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
     gamepad.update()
 
+def weapon_art():
+    gamepad.left_trigger(value=255)
+    gamepad.update()
+
+    time.sleep(PRESS_DURATION)
+
+    gamepad.left_trigger(value=0)
+    gamepad.update()
+
+
 def lock_on():
     gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
     gamepad.update()
@@ -101,9 +111,12 @@ def walk_to_boss(speed):
         gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_A)
         gamepad.update()
         time.sleep(1.0 / speed)
-    
+
+    weapon_art()
+    time.sleep(0.5 / speed) 
+
     move_forward()
-    time.sleep(6.25 / speed)
+    time.sleep(6.2 / speed)
     gamepad.reset()
     gamepad.update()
     # Lock on (RS Click)
