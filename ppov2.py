@@ -27,7 +27,7 @@ class DS3Env(gym.Env):
         self.step_count = 0
         self.max_steps = 10000
         self.action_space = spaces.MultiDiscrete([5, 4])
-        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(31,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(30,), dtype=np.float32)
 
         self.heal_count = 0
 
@@ -44,12 +44,7 @@ class DS3Env(gym.Env):
         try:
             prev_player_norm_hp = self.player.norm_hp
             prev_boss_norm_hp = self.boss.norm_hp
-    
-            if not self.ds3.locked_on:
-                controller.lock_on()
-                if not self.ds3.locked_on:
-                    controller.turn_lock_on()
-        
+            
             controller.release_all()
             self.do_action(action)
 
@@ -60,7 +55,7 @@ class DS3Env(gym.Env):
             healing_now = cur in ANIMATIONS.HEAL
             healing_prev = self.prev_animation in ANIMATIONS.HEAL if self.prev_animation is not None else False
 
-            if self.estus > 0 and healing_now and not healing_prev and self.player.animation in ANIMATIONS.HEAL:
+            if healing_now and not healing_prev and self.estus > 0:
                 self.estus -= 1
 
             self.prev_animation = cur
@@ -130,9 +125,6 @@ class DS3Env(gym.Env):
 
 
     def do_action(self, actions):
-        controller.release_all()
-        controller.keep_ds3_alive()
-
         move, act = actions
 
         match move:
@@ -175,7 +167,6 @@ class DS3Env(gym.Env):
             self.player.norm_sp, 
             self.boss.norm_hp,
             norm_dist,
-            self._normalize_estus()
         ], dtype=np.float32)
 
 
@@ -206,16 +197,7 @@ class DS3Env(gym.Env):
         encoding[anim] = 1
         return encoding
 
-    def _normalize_estus(self):
-        match self.estus:
-            case 0:
-                return 0.0
-            case 1:
-                return 0.33
-            case 2:
-                return 0.66
-            case 3:
-                return 1.0
+    
 
     def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action=3):
         """Calculate reward based on state changes"""
