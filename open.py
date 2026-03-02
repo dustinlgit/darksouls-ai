@@ -20,7 +20,6 @@ KILL_THESE = {
     "me3_launcher.exe",     # if it exists
     "me3_mod_host.exe",     # if it exists
     "me3.exe",              # if it exists
-    "steamwebhelper.exe",   # usually don't kill steam; remove if you added it
     "me3_launcher.exe",
     "me3_mod_host.exe",
     "me3.exe"

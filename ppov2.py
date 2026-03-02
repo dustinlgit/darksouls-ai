@@ -32,6 +32,15 @@ class DS3Env(gym.Env):
 
         self.heal_count = 0
 
+    def _safe_dist(self):
+        try:
+            d = float(math.dist(self.player.pos, self.boss.pos))
+        except Exception:
+            return self.MAX_DIST
+        if not np.isfinite(d):
+            return self.MAX_DIST
+        return d
+    
     def step(self, action):
         prev_player_norm_hp = self.player.norm_hp
         prev_boss_norm_hp = self.boss.norm_hp
@@ -142,7 +151,7 @@ class DS3Env(gym.Env):
 
     def _get_observation(self):
         """Get current observation (stats + frame)"""
-        dist = math.dist(self.player.pos, self.boss.pos)
+        dist = self._safe_dist()
         norm_dist = min(dist, self.MAX_DIST) / self.MAX_DIST
 
         player_anim = self._encode_player_anim(self.player.animation)
@@ -225,7 +234,8 @@ class DS3Env(gym.Env):
                 self.ds3.initialize()
         except Exception as err:
             print("_wait_until_teleported:", err)
-            open.enter_game()
+            # if not open._ds3_running:
+            #     open.enter_game()
         time.sleep(5)
 
 
@@ -237,5 +247,5 @@ class DS3Env(gym.Env):
                     break
             except Exception as err:
                 print("_wait_until_loaded:", err)
-                open.enter_game()
+                # open.enter_game()
         time.sleep(1.5)
