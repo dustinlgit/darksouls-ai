@@ -12,7 +12,7 @@ class DS3Env(gym.Env):
     SPEED = 2
     MAX_DIST = 12
     FRAME_SKIP = 4
-    FRAME_DELAY = FRAME_SKIP / 60 / 2
+    FRAME_DELAY = FRAME_SKIP / 60 / SPEED
 
     def __init__(self):
         super().__init__()
@@ -27,16 +27,21 @@ class DS3Env(gym.Env):
         self.step_count = 0
         self.max_steps = 10000
         self.action_space = spaces.MultiDiscrete([5, 4])
-        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(30,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(31,), dtype=np.float32)
 
         self.heal_count = 0
 
     def step(self, action):
         prev_player_norm_hp = self.player.norm_hp
         prev_boss_norm_hp = self.boss.norm_hp
+
+        if not self.ds3.locked_on:
+            controller.lock_on()
+            if not self.ds3.locked_on:
+                controller.turn_lock_on()
         
         self.do_action(action)
-        if action[1] == 2 and self.estus > 0:
+        if self.estus > 0 and action[1] == 2 and self.player.animation in ANIMATIONS.HEAL:
             self.estus -= 1
         time.sleep(self.FRAME_DELAY)
 
@@ -98,6 +103,9 @@ class DS3Env(gym.Env):
 
 
     def do_action(self, actions):
+        controller.release_all()
+        controller.keep_ds3_alive()
+
         move, act = actions
 
         match move:
@@ -109,6 +117,8 @@ class DS3Env(gym.Env):
                 controller.move_left()
             case 3:
                 controller.move_right()
+            case _:
+                controller.move_neutral()
 
         match act:
             case 0:
@@ -117,7 +127,7 @@ class DS3Env(gym.Env):
                 controller.dodge()
             case 2:
                 controller.heal()
-            case 3:
+            case _:
                 controller.no_action()
         
         
@@ -134,6 +144,7 @@ class DS3Env(gym.Env):
             self.player.norm_sp, 
             self.boss.norm_hp,
             norm_dist,
+            self._normalize_estus()
         ], dtype=np.float32)
 
 
@@ -164,7 +175,16 @@ class DS3Env(gym.Env):
         encoding[anim] = 1
         return encoding
 
-    
+    def _normalize_estus(self):
+        match self.estus:
+            case 0:
+                return 0.0
+            case 1:
+                return 0.33
+            case 2:
+                return 0.66
+            case 3:
+                return 1.0
 
     def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action=3):
         """Calculate reward based on state changes"""
@@ -178,6 +198,9 @@ class DS3Env(gym.Env):
 
         if action == 2 and self.estus == 0:
             reward -= 0.5
+        
+        if action == 2 and self.estus > 0 and self.player.norm_hp <= 0.5:
+            reward += 0.5
 
         if self.boss.hp <= 0:
             reward += 5
