@@ -2,6 +2,7 @@ import vgamepad as vg
 import time
 import win32gui
 import win32con
+import open
 
 gamepad = vg.VX360Gamepad()
 
@@ -60,6 +61,9 @@ def keep_ds3_alive():
         # SW_SHOWNOACTIVATE displays the window in its current size and position 
         # but does NOT take focus away from your current typing/work.
         win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
+    else:
+        print("keep_ds3_alive: re-entering the game, Window Not Found")
+        open.enter_game()
 
 def release_all():
     gamepad.reset()

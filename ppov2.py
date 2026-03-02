@@ -7,7 +7,6 @@ import math
 
 from memory import DS3Reader, BOSSES, ANIMATIONS, GUNDYR_ONE_HOT_ANIM
 import controller
-import open 
 
 class DS3Env(gym.Env):
     SPEED = 1
@@ -198,10 +197,16 @@ class DS3Env(gym.Env):
         reward = 0.0
         
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
-        player_damage = prev_player_norm_hp - self.player.norm_hp
+        
+        player_hp_change = self.player.norm_hp - prev_player_norm_hp
+
+        dmg_taken = max(0.0, -player_hp_change)
+        healing_done = max(0.0, player_hp_change)
 
         reward += boss_damage * 10
-        reward -= player_damage * 8
+        reward -= dmg_taken * 8
+
+        reward += healing_done * 1.0
 
         if action == 2 and self.estus == 0:
             reward -= 0.5
@@ -234,8 +239,6 @@ class DS3Env(gym.Env):
                 self.ds3.initialize()
         except Exception as err:
             print("_wait_until_teleported:", err)
-            # if not open._ds3_running:
-            #     open.enter_game()
         time.sleep(5)
 
 
@@ -247,5 +250,4 @@ class DS3Env(gym.Env):
                     break
             except Exception as err:
                 print("_wait_until_loaded:", err)
-                # open.enter_game()
         time.sleep(1.5)
