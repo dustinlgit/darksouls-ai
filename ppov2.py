@@ -12,7 +12,7 @@ class DS3Env(gym.Env):
     SPEED = 1
     MAX_DIST = 12
     FRAME_SKIP = 4
-    FRAME_DELAY = FRAME_SKIP / 60 / 2
+    FRAME_DELAY = FRAME_SKIP / 60 / SPEED
 
     def __init__(self):
         super().__init__()
