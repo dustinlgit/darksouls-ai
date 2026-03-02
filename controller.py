@@ -53,6 +53,27 @@ def heal():
     gamepad.release_button(vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
     gamepad.update()
 
+def lock_on():
+    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
+    gamepad.update()
+
+    time.sleep(PRESS_DURATION) 
+
+    gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
+    gamepad.update()
+
+
+def turn_lock_on(min_deg=90, max_deg=180):
+    gamepad.right_joystick(x_value=32767, y_value=0)
+    gamepad.update()
+
+    time.sleep(PRESS_DURATION)
+
+    gamepad.right_joystick(x_value=0, y_value=0)
+    gamepad.update()
+
+    lock_on()
+
     
 def keep_ds3_alive():
     hwnd = win32gui.FindWindow(None, "DARK SOULS III")
@@ -82,7 +103,7 @@ def walk_to_boss(speed):
         time.sleep(1.0 / speed)
     
     move_forward()
-    time.sleep(6.5 / speed)
+    time.sleep(6.25 / speed)
     gamepad.reset()
     gamepad.update()
     # Lock on (RS Click)
