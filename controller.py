@@ -125,3 +125,24 @@ def forward_run_attack():
     time.sleep(0.1)
     gamepad.reset()
     gamepad.update()
+
+def lock_on():
+    gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
+    gamepad.update()
+
+    time.sleep(PRESS_DURATION) 
+
+    gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
+    gamepad.update()
+
+
+def turn_lock_on(min_deg=90, max_deg=180):
+    gamepad.right_joystick(x_value=32767, y_value=0)
+    gamepad.update()
+
+    time.sleep(PRESS_DURATION)
+
+    gamepad.right_joystick(x_value=0, y_value=0)
+    gamepad.update()
+
+    lock_on()

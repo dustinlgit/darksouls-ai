@@ -1,4 +1,4 @@
-from .utils import WORLD_CHR_MAN_PATTERN
+from .utils import WORLD_CHR_MAN_PATTERN, LOCK_TGT_MAN_PATTERN
 from .entity import Entity
 
 import pymem
@@ -17,9 +17,14 @@ class DS3Reader:
 
     def initialize(self):
         self.world_chr_man = self._get_world_chr_man()
+        self.lock_tgt_man = self._get_lock_tgt_man()
         self._player = self._create_player()
         self._boss = self._create_boss(self.enemy)
+        self._locked_on_addr = self.lock_tgt_man + 0x2821
     
+    @property
+    def locked_on(self):
+        return self.ds3.read_bytes(self._locked_on_addr, 1)[0] != 0
 
     @property 
     def player(self):
@@ -74,6 +79,17 @@ class DS3Reader:
 
         return self.ds3.read_longlong(world_chr_man_addr)
 
+    def _get_lock_tgt_man(self):
+        instr = pymem.pattern.pattern_scan_module(
+            self.ds3.process_handle,
+            self.module,
+            LOCK_TGT_MAN_PATTERN,
+            return_multiple=False
+        )
+        offset = self.ds3.read_int(instr + 3)
+        lock_tgt_man_addr = instr + 7 + offset
+
+        return self.ds3.read_longlong(lock_tgt_man_addr)
 
     def follow_chain(self, addr, offsets):
         """

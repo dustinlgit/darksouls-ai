@@ -42,6 +42,10 @@ class DS3Env(gym.Env):
     
     def step(self, action):
         try:
+            if not self.ds3.locked_on:
+                controller.lock_on()
+                if not self.ds3.locked_on:
+                    controller.turn_lock_on()
             prev_player_norm_hp = self.player.norm_hp
             prev_boss_norm_hp = self.boss.norm_hp
             
@@ -213,7 +217,7 @@ class DS3Env(gym.Env):
         reward += boss_damage * 10
         reward -= dmg_taken * 8
 
-        reward += healing_done * 1.0
+        reward += healing_done * 8 #equal to dmg taken now
 
         if action == 2 and self.estus == 0:
             reward -= 0.5
@@ -262,11 +266,15 @@ class DS3Env(gym.Env):
 
 
     def _wait_until_loaded(self):
-        while True:
+        stable = 0
+        while stable < 3:
             try:
                 self.ds3.initialize()
                 if self.ds3.player.animation in ANIMATIONS.IDLE:
-                    break
+                    stable += 1
+                else:
+                    stable = 0
             except Exception as err:
-                ...#print("_wait_until_loaded:", err)
+                stable = 0
+            time.sleep(0.5)
         time.sleep(1.5)
