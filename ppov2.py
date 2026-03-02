@@ -66,7 +66,7 @@ class DS3Env(gym.Env):
             truncated = self.step_count >= self.max_steps
 
             self.step_count += 1
-            
+
             info = {
                 'player_hp': self.player.hp,
                 'boss_hp': self.boss.hp,
@@ -75,9 +75,11 @@ class DS3Env(gym.Env):
             
             #self.ds3.ds3.write_int(self.boss._hp_addr, 0)
             return obs, reward, terminated, truncated, info
-        except:
-            controller.open.enter_game()
-            self.step(action)
+        except Exception as e:
+                print("STEP EXCEPTION:", e)
+                controller.open.enter_game()
+                obs = self._get_observation()
+                return obs, -1.0, True, True, {"error": str(e)}
     
 
     def render(self):
@@ -89,7 +91,6 @@ class DS3Env(gym.Env):
 
         controller.keep_ds3_alive()
         
-        # Release all keys first to ensure clean state
         controller.release_all()
         time.sleep(1)
         
@@ -104,6 +105,8 @@ class DS3Env(gym.Env):
         print("SUCCCESS: _wait_until_loaded & _reset_mem")
         
         controller.walk_to_boss(self.SPEED)
+        controller.open.focus_window("DARK SOULS III")
+        
         print("SUCCCESS: walk_to_boss")
         
         self.step_count = 0
@@ -214,6 +217,12 @@ class DS3Env(gym.Env):
 
         if action == 2 and self.estus == 0:
             reward -= 0.5
+        
+        if action == 0:
+            if boss_damage == 0:
+                reward -= 0.5
+            else:
+                reward += 0.7
 
         if self.boss.hp <= 0:
             reward += 5
@@ -231,10 +240,16 @@ class DS3Env(gym.Env):
 
 
     def _reset_mem(self):
-        self.ds3.initialize()
-        self.heal_count = 0
-        self.player = self.ds3.player
-        self.boss = self.ds3.boss
+        while True:
+            try:
+                self.ds3.initialize()
+                self.heal_count = 0
+                self.player = self.ds3.player
+                self.boss = self.ds3.boss
+                break
+            except:
+                print("PROBLEM: _reset_mem, retrying")
+                ...
 
 
     def _wait_until_teleported(self):
