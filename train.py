@@ -1,45 +1,22 @@
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack, VecTransposeImage
+from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, EvalCallback
+from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.callbacks import BaseCallback
 
 from collections import deque
 import numpy as np
 import torch
 import os
-import re
 import argparse
+
 from datetime import datetime
-
 from ppov2 import DS3Env
-from ppov2 import open
-
-
-TB_ROOT = "./ppo_ds3_logs"
-TB_RUN_NAME = "PPO_continuousv1"
-
-def extract_steps_from_path(path: str) -> int | None:
-    """
-    Tries to extract a timestep count from common checkpoint names:
-    - rl_model_300000_steps.zip
-    - rl_model_300000.zip
-    - model_300000.zip
-    """
-    base = os.path.basename(path)
-    m = re.search(r"(\d+)", base)
-    if not m:
-        return None
-    try:
-        return int(m.group(1))
-    except:
-        return None
-
 
 def make_env():
     env = DS3Env()
-    env = Monitor(env, info_keywords=("boss_dmg", "player_dmg", "is_success"))
+    env = Monitor(env)
     return env
-
 
 parser = argparse.ArgumentParser(description="DS3 Agent Trainer")
 parser.add_argument("--steps", type=int, default=100_000)
@@ -48,11 +25,13 @@ args = parser.parse_args()
 
 
 env = DummyVecEnv([make_env])
-env = VecFrameStack(env, n_stack=4, channels_order="last")
-env = VecTransposeImage(env)
+
 
 policy_kwargs = {
-    "net_arch": {"pi": [128, 128], "vf": [128, 128]},
+    "net_arch": {
+        "pi": [128, 128],
+        "vf": [128, 128]
+    },
     "activation_fn": torch.nn.ReLU
 }
 
@@ -62,80 +41,74 @@ checkpoint = CheckpointCallback(
 )
 
 if args.load:
-    # IMPORTANT: pass tensorboard_log here so SB3 continues logging into same root
-    model = PPO.load(args.load, env=env, tensorboard_log=TB_ROOT)
-
-    # Strongly recommended: continue the timestep axis if we can infer it
-    inferred = extract_steps_from_path(args.load)
-    if inferred is not None:
-        model.num_timesteps = inferred
-        model._last_obs = None  # avoids occasional stale obs issues after load (safe)
-else:
+    model = PPO.load(args.load, env=env, device="cpu")
+else: 
     model = PPO(
-        "MultiInputPolicy",
-        env,
+        "MlpPolicy", 
+        env, 
         policy_kwargs=policy_kwargs,
-        verbose=1,
+        verbose=1, 
         n_steps=1024,
-        device="cuda",
-        tensorboard_log=TB_ROOT
+        learning_rate=1e-4,
+        gamma=0.995,
+        gae_lambda=0.925,
+        n_epochs=5,
+        ent_coef=0.01,
+        device="cpu",
+        tensorboard_log="./logs"
     )
 
 
-class EpisodeStatsCallback(BaseCallback):
-    def __init__(self, window=100, verbose=0):
+class winRate(BaseCallback):
+    def __init__(self, window_size=100, check_freq=2000, save_path="./models/best_winrate", verbose=1):
         super().__init__(verbose)
-        self.window = window
-        self.succ = deque(maxlen=window)
-        self.boss = deque(maxlen=window)
-        self.pdmg = deque(maxlen=window)
+        self.window_size = window_size
+        self.check_freq = check_freq
+        self.save_path = save_path
+        self.win_buffer = deque(maxlen=window_size)
+        self.boss_dmg_buffer = deque(maxlen=window_size)
+        self.player_dmg_buffer = deque(maxlen=window_size)
+        self.best_win_rate = 0.0
+        os.makedirs(save_path, exist_ok=True)
 
     def _on_step(self) -> bool:
-        for info in self.locals.get("infos", []):
-            if "episode" in info:
-                ep = info["episode"]
-                self.succ.append(ep.get("is_success", 0.0))
-                self.boss.append(ep.get("boss_dmg", 0.0))
-                self.pdmg.append(ep.get("player_dmg", 0.0))
+        infos = self.locals.get("infos", [])
+        dones = self.locals.get("dones", [])
 
-                self.logger.record("roll/success_rate", float(np.mean(self.succ)))
-                self.logger.record("roll/boss_dmg_mean", float(np.mean(self.boss)))
-                self.logger.record("roll/player_dmg_mean", float(np.mean(self.pdmg)))
+        # update wins and damage buffers on episode end
+        for info, done in zip(infos, dones):
+            if done:
+                win = 1 if info.get("is_success", False) else 0
+                self.win_buffer.append(win)
+                if "boss_dmg" in info:
+                    self.boss_dmg_buffer.append(info["boss_dmg"])
+                if "player_dmg" in info:
+                    self.player_dmg_buffer.append(info["player_dmg"])
+
+        # periodically evaluate win rate
+        if self.n_calls % self.check_freq == 0 and len(self.win_buffer) > 0:
+            win_rate = float(np.mean(self.win_buffer))
+            self.logger.record("rollout/win_rate_window", win_rate)
+            self.logger.record("rollout/best_win_rate", self.best_win_rate)
+            if self.boss_dmg_buffer:
+                self.logger.record("rollout/avg_boss_dmg", float(np.mean(self.boss_dmg_buffer)))
+            if self.player_dmg_buffer:
+                self.logger.record("rollout/avg_player_dmg", float(np.mean(self.player_dmg_buffer)))
+
+            if win_rate > self.best_win_rate:
+                self.best_win_rate = win_rate
+                path = os.path.join(self.save_path, "best_model_by_winrate")
+                self.model.save(path)
+                if self.verbose:
+                    print(f"[SAVE] New best win rate ({win_rate:.3f}) → {path}.zip")
+
         return True
 
+try:
+    print("Begin training")
+    win_cb = winRate(window_size=100)
 
-eval_env = DummyVecEnv([make_env])
-eval_env = VecFrameStack(eval_env, n_stack=4, channels_order="last")
-eval_env = VecTransposeImage(eval_env)
-
-eval_cb = EvalCallback(
-    eval_env,
-    best_model_save_path="./models/best_eval",
-    log_path="./models/eval_logs",
-    eval_freq=10_000,
-    n_eval_episodes=20,
-    deterministic=True,
-    render=False
-)
-
-while True:
-    try:
-        print("Begin training")
-
-        model.learn(
-            total_timesteps=args.steps,
-            callback=[checkpoint, eval_cb, EpisodeStatsCallback()],
-            tb_log_name=TB_RUN_NAME,         # <-- fixed run folder name
-            reset_num_timesteps=False        # <-- keep x-axis continuous
-        )
-        break
-
-    except Exception as e:
-        print("Training cancelled...", e)
-
-        # If your process continues, keep training continuous by NOT resetting timesteps.
-        # Save a crash checkpoint with the current num_timesteps so you can resume cleanly.
-        crash_path = f"./models/crash_{model.num_timesteps}_{datetime.now().strftime('%Y-%m-%d@%H-%M')}"
-        model.save(crash_path)
-
-        open.enter_game()
+    model.learn(args.steps, callback=[checkpoint, win_cb], reset_num_timesteps=False)
+except KeyboardInterrupt:
+    print("Training cancelled...")
+    model.save(f"./models/{datetime.now().strftime('%Y-%m-%d-%H-%M')}")

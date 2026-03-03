@@ -1,11 +1,18 @@
-from .utils import WORLD_CHR_MAN_PATTERN
-from .entity import Entity
-import ds3_open as open
-import pymem
-import psutil
 import time
 
+import psutil
+from .utils import WORLD_CHR_MAN_PATTERN, LOCK_TGT_MAN_PATTERN
+from .entity import Entity
+
+import pymem
+
+
 class DS3Reader:
+
+    ds3 = pymem.Pymem("DarkSoulsIII.exe");
+    module = pymem.process.module_from_name(ds3.process_handle, "DarkSoulsIII.exe")
+
+
     def __init__(self, enemy, debug=False):
         self.debug = debug
         self.enemy = enemy
@@ -95,9 +102,15 @@ class DS3Reader:
         self.world_chr_man = self._get_world_chr_man()
         self._player = self._create_player()
         self._boss = self._create_boss(self.enemy)
+    
 
     def initialize(self):
-        self.refresh()
+        self.world_chr_man = self._get_world_chr_man()
+        self.lock_tgt_man = self._get_lock_tgt_man()
+        self._player = self._create_player()
+        self._boss = self._create_boss(self.enemy)
+        self._locked_on_addr = self.lock_tgt_man + 0x2821
+    
 
     @property 
     def player(self):
@@ -109,13 +122,18 @@ class DS3Reader:
         return self._boss
 
 
+    @property
+    def locked_on(self):
+        return self.ds3.read_bytes(self._locked_on_addr, 1)[0] != 0
+
+
     def _create_boss(self, boss):
         return Entity(self._get_entity(boss), self)
 
 
     def _create_player(self):
         player_addr = self.follow_chain(self.world_chr_man, [0x80, 0x1F90])
-        return Entity(player_addr, self)
+        return Entity(player_addr, self);
 
 
     def _get_entity(self, entity_identifier):
@@ -151,6 +169,19 @@ class DS3Reader:
         world_chr_man_addr = instr + 7 + offset
 
         return self.ds3.read_longlong(world_chr_man_addr)
+    
+
+    def _get_lock_tgt_man(self):
+        instr = pymem.pattern.pattern_scan_module(
+            self.ds3.process_handle,
+            self.module,
+            LOCK_TGT_MAN_PATTERN,
+            return_multiple=False
+        )
+        offset = self.ds3.read_int(instr + 3)
+        lock_tgt_man_addr = instr + 7 + offset
+
+        return self.ds3.read_longlong(lock_tgt_man_addr)
 
 
     def follow_chain(self, addr, offsets):
