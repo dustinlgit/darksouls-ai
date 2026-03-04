@@ -3,8 +3,7 @@ import time
 import win32gui
 import win32con
 
-# Set to 2.0 when the game is running at 2x speed so all durations scale down
-SPEED = 1.0
+SPEED = 2.0
 
 def heal():
     gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
@@ -135,11 +134,13 @@ def boss_died_reset():
         gamepad.update()
         time.sleep(1.0 / SPEED)
 
+PRESS_DURATION = 1 / 60
+
 def lock_on():
     gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
     gamepad.update()
 
-    time.sleep(1.0 / SPEED) 
+    time.sleep(PRESS_DURATION)
 
     gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB)
     gamepad.update()
@@ -148,7 +149,7 @@ def lock_on():
 def turn_lock_on(min_deg=90, max_deg=180):
     gamepad.right_joystick(x_value=32767, y_value=0)
     gamepad.update()
-    time.sleep(1.0 / SPEED)
+    time.sleep(PRESS_DURATION)
     gamepad.right_joystick(x_value=0, y_value=0)
     gamepad.update()
 

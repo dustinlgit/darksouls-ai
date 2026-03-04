@@ -23,18 +23,18 @@ ACTION_NAMES = {
     8: "HEAL"
 }
 class DS3Env(gym.Env):
-    SPEED = 1
+    SPEED = 2
     MAX_DIST = 12
-    FRAME_SKIP = 15
+    FRAME_SKIP = 4
     FRAME_DELAY = FRAME_SKIP / 60 / SPEED
     MAX_DIST = 12
 
     # Left joystick (x, y) for each movement index
     _MOVE_JOYSTICK = {
-        0: (0.0,  1.0),  #forward
-        1: (0.0, -1.0),  #back
-        2: (-1.0,  0.0),  #left
-        3: (1.0,  0.0),  #right
+        0: (0.0,  0.8),  #forward
+        1: (0.0, -0.8),  #back
+        2: (-0.8,  0.0),  #left
+        3: (0.8,  0.0),  #right
         4: (0.0,  0.0),  #neutral
     }
 
@@ -212,10 +212,6 @@ class DS3Env(gym.Env):
             time.sleep(2)
             controller.walk_to_boss()
 
-            # Fog gate crossing changes lock_tgt_man in memory.
-            # Re-initialize AFTER crossing so _locked_on_addr is valid for the boss arena.
-            # Without this, every step() sees locked_on=False and calls turn_lock_on(),
-            # spinning the camera and causing the agent to orbit the boss.
             time.sleep(0.5 / self.SPEED)
             self._reset_mem()
 
