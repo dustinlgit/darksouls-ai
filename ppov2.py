@@ -335,18 +335,11 @@ class DS3Env(gym.Env):
             act = int(np.asarray(action).ravel()[-1])
 
         reward = 0.0
-        
+
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
         player_damage = prev_player_norm_hp - self.player.norm_hp
 
         reward += boss_damage * 10
-        reward -= player_damage * 8
-
-        dist = self._safe_dist()
-        if dist < 3.5:
-            reward += 0.05
-        elif dist > 8.0:
-            reward -= 0.02
 
         if act == 2 and self.estus == 0:
             reward -= 0.5
@@ -362,6 +355,8 @@ class DS3Env(gym.Env):
 
         if self.player.sp <= 15:
             reward -= 0.01
+
+        reward -= 0.005
 
         return reward
 
