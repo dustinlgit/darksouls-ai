@@ -9,10 +9,6 @@ import pymem
 
 class DS3Reader:
 
-    ds3 = pymem.Pymem("DarkSoulsIII.exe");
-    module = pymem.process.module_from_name(ds3.process_handle, "DarkSoulsIII.exe")
-
-
     def __init__(self, enemy, debug=False):
         self.debug = debug
         self.enemy = enemy

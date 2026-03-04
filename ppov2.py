@@ -23,7 +23,7 @@ ACTION_NAMES = {
     8: "HEAL"
 }
 class DS3Env(gym.Env):
-    SPEED = 2
+    SPEED = 1
     MAX_DIST = 12
     FRAME_SKIP = 15
     FRAME_DELAY = FRAME_SKIP / 60 / SPEED
@@ -346,15 +346,21 @@ class DS3Env(gym.Env):
         reward += boss_damage * 10
         reward -= player_damage * 8
 
-        if action == 2 and self.estus == 0:
+        dist = self._safe_dist()
+        if dist < 3.5:
+            reward += 0.05
+        elif dist > 8.0:
+            reward -= 0.02
+
+        if act == 2 and self.estus == 0:
             reward -= 0.5
 
         if self.boss.hp <= 0:
             reward += 5
-        
+
         if self.boss.norm_hp < 0.5:
             reward += 0.01
-        
+
         if self.player.hp <= 0:
             reward -= 5
 
