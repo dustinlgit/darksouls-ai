@@ -104,7 +104,6 @@ class DS3Env(gym.Env):
 
     def do_action(self, actions):
         controller.release_all()
-        controller.keep_ds3_alive()
 
         move, act = actions
 
@@ -118,7 +117,7 @@ class DS3Env(gym.Env):
             case 3:
                 controller.move_right()
             case _:
-                controller.move_neutral()
+                pass
 
         match act:
             case 0:
@@ -185,6 +184,8 @@ class DS3Env(gym.Env):
                 return 0.66
             case 3:
                 return 1.0
+            case _:
+                return 0.0
 
     def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action=3):
         """Calculate reward based on state changes"""
@@ -194,13 +195,10 @@ class DS3Env(gym.Env):
         player_damage = prev_player_norm_hp - self.player.norm_hp
 
         reward += boss_damage * 10
-        reward -= player_damage * 8
+        reward -= player_damage * 6
 
         if action == 2 and self.estus == 0:
             reward -= 0.5
-        
-        if action == 2 and self.estus > 0 and self.player.norm_hp <= 0.5:
-            reward += 0.5
 
         if self.boss.hp <= 0:
             reward += 5
@@ -234,11 +232,16 @@ class DS3Env(gym.Env):
 
 
     def _wait_until_loaded(self):
+        start = time.time()
+
         while True:
             try:
                 self.ds3.initialize()
                 if self.ds3.player.animation in ANIMATIONS.IDLE:
                     break
+                elif time.time() - start > 30:
+                    break
+
             except Exception:
                 ...
 

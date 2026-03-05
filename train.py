@@ -39,7 +39,7 @@ policy_kwargs = {
 
 checkpoint = CheckpointCallback(
     save_freq=4096,
-    save_path="./new_models",
+    save_path="./test_models",
 )
 
 if args.load:
@@ -57,13 +57,13 @@ else:
         n_epochs=5,
         ent_coef=0.01,
         device="cpu",
-        tensorboard_log="./new_logs"
+        tensorboard_log="./test_logs"
     )
 
 eval_cb = EvalCallback(
     env,
-    best_model_save_path="./new_models/best_eval",
-    log_path="./new_models/eval_logs",
+    best_model_save_path="./test_models/best_eval",
+    log_path="./test_models/eval_logs",
     eval_freq=10_000,
     n_eval_episodes=5,
     deterministic=True,
@@ -71,7 +71,7 @@ eval_cb = EvalCallback(
 )
 
 class winRate(BaseCallback):
-    def __init__(self, window_size=100, check_freq=2000, save_path="./new_models/best_winrate", verbose=1):
+    def __init__(self, window_size=100, check_freq=2000, save_path="./test_models/best_winrate", verbose=1):
         super().__init__(verbose)
         self.window_size = window_size
         self.check_freq = check_freq
@@ -112,4 +112,4 @@ try:
     model.learn(args.steps, callback=[checkpoint, eval_cb, win_cb], reset_num_timesteps=False)
 except KeyboardInterrupt:
     print("Training cancelled...")
-    model.save(f"./new_models/{datetime.now().strftime('%Y-%m-%d-%H-%M')}")
+    model.save(f"./test_models/{datetime.now().strftime('%Y-%m-%d-%H-%M')}")
