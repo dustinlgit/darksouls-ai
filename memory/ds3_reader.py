@@ -62,7 +62,7 @@ class DS3Reader:
                 # probe read
                 _ = self.ds3.read_int(self.module.lpBaseOfDll)
                 return launched
-
+            
             except Exception as e:
                 last_err = e
                 self._detach()

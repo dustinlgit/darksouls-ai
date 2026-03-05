@@ -95,6 +95,9 @@ def enter_game(timeout=90.0):
     t0 = time.time()
     while time.time() - t0 < timeout:
         if _ds3_running():
+            for p in psutil.process_iter(["name"]):
+                if (p.info["name"] or "").lower().startswith("cheatengine"):
+                    p.kill()
             subprocess.Popen(
                 [CE_PATH, CT_PATH],
                 stdout=subprocess.DEVNULL,
