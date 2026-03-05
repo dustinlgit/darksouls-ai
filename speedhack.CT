@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CheatTable>
+  <CheatEntries/>
+  <LuaScript>
+openProcess("DarkSoulsIII.exe")
+hookSpeedFunctions()
+speedhack_setSpeed(2.0)
+  </LuaScript>
+</CheatTable>

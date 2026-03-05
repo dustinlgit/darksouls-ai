@@ -361,10 +361,15 @@ class DS3Env(gym.Env):
         return reward
 
     def _reset_mem(self):
-        self.ds3.initialize()
-        self.player = self.ds3.player
-        self.boss = self.ds3.boss
-        self.needs_refresh = False
+        try:
+            self.ds3.initialize()
+            self.player = self.ds3.player
+            self.boss = self.ds3.boss
+            self.needs_refresh = False
+        except:
+            print("reset_mem failed, restarting game")
+            open.enter_game()
+            
 
 
     def _wait_until_teleported(self):

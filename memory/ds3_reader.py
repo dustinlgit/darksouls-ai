@@ -68,7 +68,6 @@ class DS3Reader:
                 self._detach()
 
                 if relaunch and not launched:
-                    # IMPORTANT: call your enter_game correctly (see section 4)
                     import ds3_open as open
                     ok = open.enter_game(timeout=90.0)
                     if not ok:
@@ -80,13 +79,10 @@ class DS3Reader:
         raise RuntimeError(f"Could not attach within {timeout}s. Last error: {last_err}")
 
     def ensure_attached(self):
-        # if not attached or PID changed -> attach
         pid = self._current_ds3_pid()
         if self.ds3 is None or self.module is None or self.pid is None or pid != self.pid:
             self.attach(relaunch=True)
             return
-
-        # probe read; any failure -> detach + attach
         try:
             _ = self.ds3.read_int(self.module.lpBaseOfDll)
         except Exception:

@@ -14,6 +14,9 @@ import win32gui
 
 DS3_EXE = "DarkSoulsIII.exe"
 
+CE_PATH = r"C:\Program Files\Cheat Engine\Cheat Engine.exe"
+CT_PATH = str(Path(__file__).parent / "speedhack.CT")
+
 KILL_THESE = {
     "darksoulsiii.exe",
     "me3_launcher.exe",
@@ -92,6 +95,13 @@ def enter_game(timeout=90.0):
     t0 = time.time()
     while time.time() - t0 < timeout:
         if _ds3_running():
+            subprocess.Popen(
+                [CE_PATH, CT_PATH],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            import controller
+            controller.release_all_keys()
             time.sleep(15)
             pdi.click(960, 540) 
             time.sleep(0.2)
