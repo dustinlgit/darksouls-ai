@@ -203,8 +203,8 @@ class DS3Env(gym.Env):
         self._wait_until_loaded()
         self._reset_mem()
         
-        self.prev_player_hp = float(self.player.hp)
-        self.prev_boss_hp = float(self.boss.hp)
+        self.prev_player_hp = float(self._safe_read(lambda: self.player.hp, 0))
+        self.prev_boss_hp = float(self._safe_read(lambda: self.boss.hp, 0))
 
         for walk_attempt in range(3):
             print(f"Walking to boss... (attempt {walk_attempt + 1})")
@@ -228,8 +228,8 @@ class DS3Env(gym.Env):
         print(f"Reset complete")
         obs = self._get_observation()
         info = {
-            "player_hp": self.player.hp,
-            "boss_hp": self.boss.hp
+            "player_hp": self._safe_read(lambda: self.player.hp, 0),
+            "boss_hp": self._safe_read(lambda: self.boss.hp, 0),
         }
 
         return obs, info
@@ -361,14 +361,19 @@ class DS3Env(gym.Env):
         return reward
 
     def _reset_mem(self):
-        try:
-            self.ds3.initialize()
-            self.player = self.ds3.player
-            self.boss = self.ds3.boss
-            self.needs_refresh = False
-        except:
-            print("reset_mem failed, restarting game")
-            open.enter_game()
+        for attempt in range(20):
+            try:
+                self.ds3.initialize()
+                self.player = self.ds3.player
+                self.boss = self.ds3.boss
+                self.needs_refresh = False
+                return
+            except Exception as e:
+                print(f"_reset_mem attempt {attempt + 1}/20 failed: {e}")
+                if attempt == 0:
+                    open.enter_game()
+                time.sleep(2)
+        raise RuntimeError("_reset_mem failed after 20 attempts")
             
 
 
