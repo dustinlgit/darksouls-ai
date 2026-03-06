@@ -246,9 +246,9 @@ class DS3Env(gym.Env):
 
         match act:
             case 0: controller.right_hand_light_attack()
-            case 1: controller.dodge()   # joystick direction = dodge direction
+            case 1: controller.dodge()
             case 2: controller.heal()
-            case 3: pass                 # hold movement only
+            case 3: pass
 
     def _safe_dist(self):
         try:
@@ -341,11 +341,17 @@ class DS3Env(gym.Env):
 
         reward += boss_damage * 10
 
+        # stage 1: player will get neg reward for taaking damage
+        if player_damage > 0:
+            reward -= player_damage * 4
+
         if act == 2 and self.estus == 0:
             reward -= 0.5
 
         if self.boss.hp <= 0:
             reward += 5
+            #survival bonus only on when killing boss, learns efficient use of hp and trades 
+            reward += self.player.norm_hp * 2
 
         if self.boss.norm_hp < 0.5:
             reward += 0.01
