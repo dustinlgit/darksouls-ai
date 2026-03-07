@@ -343,15 +343,17 @@ class DS3Env(gym.Env):
 
         # stage 1: player will get neg reward for taaking damage
         if player_damage > 0:
-            reward -= player_damage * 4
+            reward -= player_damage * 1.5
 
         if act == 2 and self.estus == 0:
             reward -= 0.5
 
         if self.boss.hp <= 0:
             reward += 5
-            #survival bonus only on when killing boss, learns efficient use of hp and trades 
-            reward += self.player.norm_hp * 2
+
+        # stage 1: survival bonus only if we damage and trade well...
+        if boss_damage > 0 and player_damage == 0:
+            reward += 0.05
 
         if self.boss.norm_hp < 0.5:
             reward += 0.01

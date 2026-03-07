@@ -42,6 +42,9 @@ checkpoint = CheckpointCallback(
 
 if args.load:
     model = PPO.load(args.load, env=env, device="cpu")
+    model.policy.optimizer = torch.optim.Adam(
+        model.policy.parameters(), lr=1e-4, eps=1e-5 #supposed to give "fresh start" so faster to learn new behavior
+    )
 else: 
     model = PPO(
         "MlpPolicy", 
