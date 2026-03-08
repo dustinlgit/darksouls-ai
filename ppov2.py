@@ -339,7 +339,7 @@ class DS3Env(gym.Env):
         boss_damage = prev_boss_norm_hp - self.boss.norm_hp
         player_damage = prev_player_norm_hp - self.player.norm_hp
 
-        reward += boss_damage * 10
+        reward += boss_damage * 12
 
         # stage 1: player will get neg reward for taaking damage
         if player_damage > 0:
@@ -350,6 +350,12 @@ class DS3Env(gym.Env):
 
         if self.boss.hp <= 0:
             reward += 5
+
+        # stage 1: in range attack reward
+        dist_to_boss = self._safe_dist()
+        norm_dist = min(dist_to_boss, self.MAX_DIST) / self.MAX_DIST
+        if act == 0 and norm_dist <= 0.35:
+            reward += 0.03
 
         # stage 1: survival bonus only if we damage and trade well...
         if boss_damage > 0 and player_damage == 0:
@@ -369,6 +375,12 @@ class DS3Env(gym.Env):
         return reward
 
     def _reset_mem(self):
+        if not open._ds3_running():
+            print("DS3 not running, relaunching game...")
+            open.enter_game()
+            print("Waiting for game state to be ready...")
+            time.sleep(30)
+
         for attempt in range(20):
             try:
                 self.ds3.initialize()
@@ -378,9 +390,13 @@ class DS3Env(gym.Env):
                 return
             except Exception as e:
                 print(f"_reset_mem attempt {attempt + 1}/20 failed: {e}")
-                if attempt == 0:
+                if not open._ds3_running():
+                    print("DS3 crashed mid-retry, relaunching...")
                     open.enter_game()
-                time.sleep(2)
+                    print("Waiting for game state to be ready...")
+                    time.sleep(30)
+                else:
+                    time.sleep(3)
         raise RuntimeError("_reset_mem failed after 20 attempts")
             
 
