@@ -412,11 +412,16 @@ class DS3Env(gym.Env):
 
     def _wait_until_loaded(self):
         while True:
+            if not open._ds3_running():
+                print("DS3 not running in _wait_until_loaded, relaunching game...")
+                open.enter_game()
+                time.sleep(30)
             try:
                 self.ds3.initialize()
                 if self.ds3.player.animation in ANIMATIONS.IDLE:
                     break
             except Exception:
-                ...
+                print("Couldn't Initialize in wait_until_loaded, ")
+                time.sleep(1)
 
         time.sleep(1.5)
