@@ -383,7 +383,7 @@ class DS3Env(gym.Env):
 
         for attempt in range(20):
             try:
-                self.ds3.initialize()
+                self.ds3.refresh()
                 self.player = self.ds3.player
                 self.boss = self.ds3.boss
                 self.needs_refresh = False
@@ -418,10 +418,10 @@ class DS3Env(gym.Env):
                 time.sleep(30)
             try:
                 self.ds3.initialize()
+                print(f"waiting... animation={self.ds3.player.animation}")
                 if self.ds3.player.animation in ANIMATIONS.IDLE:
                     break
             except Exception:
-                print("Couldn't Initialize in wait_until_loaded, ")
                 time.sleep(1)
 
         time.sleep(1.5)
