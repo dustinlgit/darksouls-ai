@@ -1,3 +1,3 @@
-from .no_img import NoImgOgEnv
+from .no_img import NoImg800kEnv
 
-__all__ = [NoImgOgEnv]
+__all__ = [NoImg800kEnv]

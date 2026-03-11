@@ -2,23 +2,23 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.logger import configure
-from envs import NoImgOgEnv
+from envs.no_img.env_800k import DS3Env as NoImg800kEnv
 import numpy as np
 
 EPISODES = 50
 
 
 def make_env():
-    env = NoImgOgEnv()
+    env = NoImg800kEnv()
     env = Monitor(env)  
     return env
 
 
 env = DummyVecEnv([make_env])
-env = VecFrameStack(env, n_stack=4, channels_order="last")
+#env = VecFrameStack(env, n_stack=4, channels_order="last")
 
 logger = configure("./eval_logs", ["stdout", "tensorboard"])
-model = PPO.load("./models/no-img-v1", env=env, device="cpu")
+model = PPO.load("./models/rl_model_860160_steps", env=env, device="cpu")
 model.set_logger(logger)
 
 wins = 0
