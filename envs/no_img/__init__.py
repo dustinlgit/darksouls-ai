@@ -1,3 +1,3 @@
-from .env_800k import DS3Env as NoImg800kEnv
+from .env_early import DS3Env as envEarly
 
-__all__ = [NoImg800kEnv]
+__all__ = [envEarly]
