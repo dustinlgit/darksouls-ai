@@ -51,7 +51,7 @@ Training was conducted over a large number of timesteps, with our final model re
 <details>
 <summary><strong>Case 1: Early Version Reward Function Code (2/1)</strong></summary>
     
-```python
+<pre><code class="language-python">
 def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
         """Calculate reward based on state changes"""
         reward = 0.0
@@ -104,7 +104,7 @@ def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
             if self.heal_count > 3:
                 reward -= 0.3 * (self.heal_count - 3) #4-3 -> neg 0.3 reward originally
         return reward
-```
+</code></pre>
 
 </details>
     
@@ -133,7 +133,7 @@ Analyzing the only model saved from this environment (10k step model), the agent
 <details>
 <summary><strong>Case 2: Intermediate Version Reward Function Code (2/21)</strong></summary>
 
-```python
+<pre><code class="language-python">
 def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
     """Calculate reward based on state changes"""
     ATTACK_ACT = (1,)
@@ -223,7 +223,7 @@ def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
         if self.heal_count > 3:
             reward -= 0.05 * (self.heal_count - 3)
     return reward
-```
+</code></pre>
 
 </details>
     
@@ -253,7 +253,7 @@ The model we ran was from around the time the agent had gotten a kill, so at 69,
 <details>
 <summary><strong>Case 3: Most Recent Version Reward Function</strong></summary>
 
-```py
+<pre><code class="language-python">
 def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, player_norm_min, boss_norm_min, action):
     a = np.asarray(action).squeeze()
     if a.shape == (2,):
@@ -301,8 +301,7 @@ def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, player_norm_
     reward -= 0.005
 
     return reward
-```
-
+</code></pre>
 
 </details>
     
