@@ -13,6 +13,7 @@ body {
   margin-left: 40px;
   margin-right: 40px;
   margin-bottom: 60px;
+  line-height: 1.7;
 }
 .footer {
   position: absolute;
@@ -33,6 +34,10 @@ body > .container {
 }
 .container .text-muted {
   margin: 20px 0;
+}
+
+.container > {
+  margin-bottom: 25px;
 }
 
 .footer > .container {
