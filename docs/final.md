@@ -6,7 +6,7 @@ title: Final Report
 ## Video
 
 <iframe
-    src="https://www.youtube.com/watch?v=Ss4a7VkUojE"
+    src="https://www.youtube.com/embed/5k4oZVsUp5L"
     style="width:100%; aspect-ratio: 16/9;"
     allowfullscreen> 
 </iframe>
