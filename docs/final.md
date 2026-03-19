@@ -5,16 +5,13 @@ title: Final Report
 ---
 ## Video
 
-<iframe
-    src="https://www.youtube.com/embed/5k4oZVsUp5L"
-    style="width:100%; aspect-ratio: 16/9;"
-    allowfullscreen> 
-</iframe>
+<a href="https://www.youtube.com/watch?v=Ss4a7VkUojE" target="_blank">
+  <img src="https://img.youtube.com/vi/Ss4a7VkUojE/maxresdefault.jpg" width="100%">
+</a>
 
----
+--- 
 
 ## Project Summary
-
 Our project, **ProximalSouls**, focuses on training an AI agent to operate in a combat environment inspired by **Dark Souls III**, a game known for its high difficulty and emphasis on precise timing. The objective of the agent is to defeat a boss by learning how to attack, dodge, and heal effectively while managing limited resources such as health and stamina. The environment is fast-paced and unforgiving, where small mistakes can quickly lead to failure. This creates a challenging setting in which the agent must learn through repeated interaction and adaptation rather than relying on predefined rules.
 
 The motivation behind this project comes from the complexity of real-time decision-making in combat scenarios. Unlike simpler or turn-based environments, this problem requires the agent to balance multiple objectives at once, including dealing damage, avoiding incoming attacks, maintaining proper positioning, and choosing the right timing for each action. The environment also introduces challenges such as noisy observations and partial information, since the agent relies on both visual inputs and game state variables. These factors make the problem non-trivial, as there is no simple or deterministic strategy that consistently leads to success across all situations.
