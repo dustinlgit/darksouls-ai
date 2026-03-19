@@ -39,9 +39,58 @@ Our primary method uses Proximal Policy Optimization (PPO), a policy-gradient re
 
 where r_t (theta) is the ratio between new and old policy probabilities and A_t is the advantage estimate. In addition to the policy loss, PPO optimizes a value function loss to predict expected returns and includes an entropy bonus to encourage exploration. These components together allow the agent to improve steadily without making destabilizing updates.
 
-In our environment, the observation space is composed of both structured game state variables and visual or spatial information. The structured inputs include normalized values such as player health, boss health, stamina, relative distance to the boss, and action history. These features are designed to give the agent a compact but informative representation of the game state. The action space is discrete and consists of movement actions, attack actions, defensive maneuvers such as rolling, and a healing action. At each timestep, the agent selects an action based on its current policy, executes it in the environment, and receives a scalar reward. The reward function is carefully designed to guide learning by incentivizing boss damage and discouraging player damage, while also incorporating penalties for inefficient behavior such as wasting stamina or taking too long. Over the course of the project, we iterated heavily on reward design, eventually simplifying it to reduce noise and improve learning stability.
+In our environments, the observation space is composed of structured game state variables and or visual/spatial information. All values are floats normalized to the range `[0, 1]`. In the beginning, our observation space looked something like:
+- `Normalized Player HP`
+- `Normalized Player SP (Stamina)`
+- `Normalized Boss HP`
+- `Normalized Distance between Player and Boss`
+- `Estus Remaining (Healing)`
+- `Successful Action (Binary value denoting whether action succeeded)`
+- `(128, 128, 1) pixel frame (128x128 grayscaled game capture)`
 
-Training was conducted over a large number of timesteps, with our final model reaching approximately 800,000 to 860,000 environment steps. We used standard PPO hyperparameters as a baseline, taken from widely used implementations such as Stable-Baselines3, including a learning rate on the order of 3×10^-4, a clipping parameter ϵ\epsilon around 0.2, and a discount factor γ of 0.99. Additional parameters such as batch size, number of epochs per update, and entropy coefficient were initially kept at default values and later adjusted slightly based on observed training stability. For example, we monitored metrics such as approximate KL divergence and entropy loss to ensure that policy updates remained stable and not overly random. When instability occurred, such as excessively large KL divergence, we prioritized simplifying the reward function rather than heavily tuning hyperparameters. This iterative process of combining reward shaping adjustments with stable PPO defaults allowed us to progressively improve performance and achieve more consistent agent behavior.
+with different environments dropping 1-2 values depending on the stage of development. Our more recent environments drop the frame data entirely and exclusively use game features:
+- `Normalized Player HP`
+- `Normalized Player SP (Stamina)`
+- `Normalized Boss HP`
+- `Normalized Distance between Player and Boss`
+- `Estus Remaining (Healing)`
+- `Boss Animation (21 Dimensional One Hot Encoding)`
+- `Player Animation (5 Dimensional One Hot Encoded)`
+
+which form a 31-dimensionsal `Box` observation space. The loss of visual data has to be compensated by the animation information if we want the agent to still learn the timing of visual cues. Notably, the progress through each animation was not able to be obtained, meaning that regardless of how far into an animation the player or boss is in, the agent receives the same observation. While this makes timing harder, it is more realistic to how a normal human player would perceive the information cognitively, instead of fine grained progress values.
+
+To help the agent learn the timings it needs to survive, we use a `VecFrameStack` with a buffer of 4 frames. Our time steps are defined by the frame skip `n`, where `n` is the amount of frames (60 frames per second) we skip between steps. In practice, there is "jitter" from code execution, context switching, etc. Initially our frame skip was roughly `n=6`, but we transitioned to `n=4` when we dropped the frame data.
+
+One issue that **Dark Souls III** presents is its continuous camera space. We bypass this by using "lock on" feature provided in game, which fixes the camera on to a selected target. Certain boss attacks would break the locked on state, which would almost always end in death for the agent. This is not something we solved until after the dropping the frame data. The action space started off as a simple `Discrete` action space which would include some or all of:
+- `Attack`
+- `Forward Attack`
+- `Movement (Cardinal directions; each gets one action)`
+- `Forward Roll`
+- `Backstep`
+- `Heal`
+- `Do not act`
+
+We then transitioned in the no frame environment to a `MultiDiscrete` action space with `(5, 4)` dimensions:
+- Axis 1 (Movement):
+    - `Movement (Cardinal directions; each gets one action)`
+    - `No movement`
+- Axis 2 (Action):
+    - `Attack`
+    - `Roll/Backstep (Same input; depends on movement for actual executed action)`
+    - `Heal`
+    - `Do not act`
+
+This action space is more analogous to real human gameplay, as well as allowing the agent to perform more gameplay actions without polluting a single discrete space with more hardcoded actions. As an example, the direction of rolling was hardcoded to forward in the original action space. Now, the direction of the roll is based off of the movement axis, opening up the other directions without having to hardcode each direction as a separate action. 
+
+At each timestep, the agent selects an action based on its current policy, executes it in the environment, and receives a scalar reward. The reward function was initially designed to guide learning by incentivizing boss damage and discouraging player damage, while also incorporating penalties for inefficient behavior such as wasting stamina or taking too long. Over the course of the project, we iterated heavily on reward design, eventually simplifying it to reduce noise and improve learning stability.
+
+Training was conducted over a variable number of timesteps. Each environment we tested would converge or perform optimally at different points. With our first environments 100,000 steps would be the goal. Our final model has been trained for far longer, reaching approximately 800,000 to 860,000 steps. We used standard PPO hyperparameters as a baseline, taken from widely used implementations such as Stable-Baselines3, including a learning rate on the order of 3e-4, a clipping parameter ϵ around 0.2, and a discount factor γ of 0.99. Additional parameters such as batch size, number of epochs per update, and entropy coefficient were initially kept at default values and later adjusted slightly based on observed training stability. For example, we monitored metrics such as approximate KL divergence and entropy loss to ensure that policy updates remained stable and not overly random. When instability occurred, such as excessively large KL divergence, we prioritized simplifying the reward function rather than heavily tuning hyperparameters. That being said, when we initially transitioned our environment, we did tune a few notable hyperparameters:
+- `n_steps=1024 (default=2048)`
+- `n_epochs=5 (default=10)`
+- `ent_coef=0.01 (default=0.0)`
+- `learning_rate=1e-4 (default=0.0)`
+
+with the rationale being that our observations are cleaner now, so we want to try more exploratory behavior. While we do encourage exploration, with more frequent short-sighted updates, this also introduces more risk of learning "bad" things rapidly. So we lowered the learning rate to another widely used value, to limit how much can be learned at once.
 
 ---
 
@@ -118,13 +167,13 @@ def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
     </figcaption>
 </figure>
 
-#### Case 1 Quantitative Analysis
+#### **Case 1 Quantitative Analysis**
 
 Looking at our reward function, one might notice it is very complex due to it’s intention to shape behavior towards dealing damage, avoiding damage, keeping within attack range of the boss, killing the boss, survival, and using an Estus Flask (heal) strategically. With all these categories, which our earlier models focused on, have a wide gap for the agent to learn from, since every behavior can lead to a reward number, but shaped by a huge number of categories, which is difficult to define. This, causes the agent to have trouble learning what is right from wrong, due to an unclear definition via noise in our reward function. 
 
 Looking into `rollout/ep_len_mean` in *Figure 2* , we can see at first, the episode length is very short, but as time goes on, episodes get longer, meaning the agent is learning how to survive. However, analyzing the agent’s behavior in the qualitative analysis below proves this survival was incentivized through an exploitations of a survival reward, which was not intended. Looking at the `rollout/ep_rew_mean` in *Figure 2*, shows that for the first roughly 20k steps, the agent is not doing well, but then slowly starts increasing it’s reward heavily. This can be attributed to the same survival reward exploitation. The `train/approx_kl` in *Figure 2* shows a rise from 0 to about 1.5, which is pretty high for PPO, meaning that the policy was not stable enough for the agent to learn. The `train/explained_variance` oscillated a lot and ended up at 0.5, which is not super close to 1.0 (the target value), meaning that the agent is not able to predict returns, which makes updates noisy and unreliable. So the entropy loss ends up climbing and plateauing around -0.5 which means the policy just grew to be uncertain, since negative indicates the policy is more random, and it steadily stayed at this -0.5 range. 
 
-#### Case 1 Qualitative Analysis
+#### **Case 1 Qualitative Analysis**
 
 <iframe
     src="https://www.youtube.com/embed/-yDiVhrWwZ4"
@@ -244,13 +293,13 @@ def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, action):
     </figcaption>
 </figure>
 
-#### Case 2 Quantitative Analysis
+#### **Case 2 Quantitative Analysis**
 
 For another look into one of our intermediate models, our observation space was still based on game internal values and a pixel frame. However, this time, our reward function was even more detailed than our earlier one. Boss damage reward was increased from 2 to 12, the death penalty also increased from -2 to -6. This time, we also added a time pressure penalty of -0.007 per step, which was meant to stop the initial survival reward exploitation. Player damage was also increased to player damage multiplied by 5, and a scale of how low the agent’s HP is relative to it’s total HP. Despite, these specified changes, the graphs show that the agent fails to converge to a steady combative behavior. The `episode/boss_dmg` in *Figure 3* shows consistent oscillation, ranging from about 50 and 500, which tells us the model does not converge to a behavior that leads to similar amounts of damage throughout episodes. In terms of “success”, which would mean a boss kill, the model was only able to get one across 89,325 steps. Since metrics such as boss damage, varied a lot per episode, this success could be attributed to luck, instead of a stable policy. Additionally, the `episode/player_dmg` in *Figure 3* was averaged around a high value (~400-1200), meaning that the low HP scale multiplier for damage taken was as effective since there was no clear decrease in the agent’s damage taken during training.
 
 The training values tell use more about why this model failed in certain aspects. For example, `train/approx_kl` in *Figure 3* should lean towards a value of 0.02, but instead started at about 0.4, and climbs to about 0.88, meaning the updates are too large, making the policy unstable.  Looking at `train/explained_variance` in *Figure 3*, we can also see values changing throughout, and eventually landing at 0.31, which is worse than Case 1’s 0.5. Thus, this model has a hard time predicting returns, which is probably due to the more complex reward shaping compared to Case 1, making it hard to estimate consistently. Finally, `train/entropy_loss` climbs from a very negative value of -1.3 towards -0.7 by the end, which is still more random than Case 1’s endpoint of -0.5. This means the policy is still uncertain and has not committed to a reliable policy, causing stats such as player damage and boss damage to very hugely per episode. Overall these trends, suggest scaling up reward magnitudes, adding time pressure, and generally having a more specific heal reward setup brought up the underlying issue of reward complexity and signal noise we had struggled to identify as a problem.
 
-#### Case 2 Qualitative Analysis
+#### **Case 2 Qualitative Analysis**
 
 <iframe
     src="https://www.youtube.com/embed/uVrzh4vpu6A"
@@ -330,15 +379,15 @@ def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, player_norm_
     </figcaption>
 </figure>
 
-#### Case 3 Quantitative Analysis
+#### **Case 3 Quantitative Analysis**
 
 For our most recent, and most trained model, the reward function was extremely simple compared to our previous tests. For our first ~400,000 steps of this model, we only gave a huge positive reward for doing damage to the boss. Then, we decided to tweak the function to add a penalty for the player taking damage, which was ran up until around 600,000 steps. As seen in the graphs, the “small” penalty was `normalized damage taken * 4`, while the boss damage was `normalized damage dealt * 10`. This changed behavior dramatically, as the player no longer did as much damage to the boss as seen by the huge decline in `rollout/avg_boss_dmg` in *Figure 4*. After realizing the reward tweak was too over dominating, we lowered the damage taken reward to a scaler of 1.5. After this change, average boss damage was higher than we had seen initially, meaning it is possible the agent was learning how to maneuver better possibly due to the mishap of the initial huge penalty given to taking damage. 
 
 The rollout metrics have shown an upward trend, constituting learning over the long almost 6 day training. The `rollout/ep_rew_mean` in *Figure 4* shows a huge increase, then of course a downward trend in the section where we added an overbearing penalty to damage taken. This is followed by a huge upward trend, once the penalty weightings were adjusted properly. For episode length, if we look at the `rollout/ep_len_mean` in *Figure 4*, it climbs from around 150 to 400 before settling around 180 by the end of training. This suggests the agent had explored survival tactics, such as rolling and dodging rather than just attacking the boss with the `normalized damage taken * 4` penalty. The success rate logged in `rollout/success_rate` is the rate at which we killed the boss, which fluctuates a lot throughout training, and hovered around 2-4%. On the other hand, our `rollout/best_win_rate`, which was a metric of how many wins the agent achieved in a moving window of 100 episodes, which peaked at around 9.09%, which was significantly better than in our previous Case 1 and 2 environments, with nearly 0 successes. Additonally, the `rollout/avg_boss_dmg` in *Figure 4* is continuting to grow. It remains around 634 by the end of training, and the graph indicates the agent is increasing it’s damage to the boss across episodes. 
 
-Another metric that has improved is the `train/approx_kl`, which has stayed around 0-0.01 for the entirety of our 860,000 steps, and ending at 0.0042, which is far closer to the healthier range of PPO (0.02) than Case 1’s 1.5 and Case 2’s 0.88. We can derive that due to the simplified reward function, we produced a consistent, more controlled reward output, which allowed policy updates to stay small and steady. The train/entropy_loss stays in the -1.8 to -2.4 range, which compared to Case 1 and 2 was more negative, indicating the policy was more decisive and committed to certain actions which yielded a stable similar reward each episode. As for the train/explained_variance, it oscillates between 0.4 and 0.8, ending at around 0.45. Compared to Case 1 (0.5) and Case 2 (0.31), Case 3 sits in the middle. The important difference though, is the shape of the graphs. For example, Case 1 and Case 2 had graphs that were chaotic from the start, where Case 3 climbs in the middle of training, before dropping back down. This suggests the dodge/roll defensive actions were learning well, before the policy was changed to encourage more damage. Although the target value is 1.0, the reason it never gets to this value, is mostly likely because the boss has varied patterns of attacks, and a single mistimed action could lead to the episode’s end which could have been going well up until that point. 
+Another metric that has improved is the `train/approx_kl`, which has stayed around 0-0.01 for the entirety of our 860,000 steps, and ending at 0.0042, which is far closer to the healthier range of PPO (0.02) than Case 1’s 1.5 and Case 2’s 0.88. We can derive that due to the simplified reward function, we produced a consistent, more controlled reward output, which allowed policy updates to stay small and steady. The `train/entropy_loss` stays in the -1.8 to -2.4 range, which compared to Case 1 and 2 was more negative, indicating that the policy was more decisive and committed to certain actions which yielded a stable similar reward each episode. As for the `train/explained_variance`, it oscillates between 0.4 and 0.8, ending at around 0.45. Compared to Case 1 (0.5) and Case 2 (0.31), Case 3 sits in the middle. The important difference though, is the shape of the graphs. For example, Case 1 and Case 2 had graphs that were chaotic from the start, whereas Case 3 climbs in the middle of training, before dropping back down. This suggests the dodge/roll defensive actions were learning well, before the policy was changed to encourage more damage. Although the target value is 1.0, the reason it never gets to this value, is mostly likely because the boss has varied patterns of attacks, and a single mistimed action could lead to the episode’s end which could have been going well up until that point. 
 
-#### Case 3 Qualitative Analysis
+#### **Case 3 Qualitative Analysis**
 
 <iframe
     src="https://www.youtube.com/embed/Lb8OTMaF1oY"
@@ -352,31 +401,37 @@ One important thing to note is that the agent no longer has any healing rewards,
 
 ## Resources Used
 
-[List all resources that were meaningful to your project. Be comprehensive about AI tool usage.]
-
-## **Papers & Publications:**
-
 ## **Code & Libraries:**
-
-https://github.com/dustinlgit/darksouls-ai
+- Stable-Baselines3 for the PPO implementation and training framework
+- Gymnasium to build our custom **Dark Souls III** environment
+- [pymem](https://pypi.org/project/Pymem/) for reading structured game state values directly from **Dark Souls III** memory
+- [The Grand Archives](https://github.com/The-Grand-Archives/Dark-Souls-III-CT-TGA) for providing a foundation for memory data extraction
+- [vgamepad](https://github.com/yannbouteiller/vgamepad) (virtual XBox360 controller), which utilizes [ViGEmBus](https://github.com/nefarius/ViGEmBus), for executing agent actions
+- [mss](https://pypi.org/project/mss/) for capturing game frames
+- [Boss Arena](https://www.nexusmods.com/darksouls3/mods/1854) mod for **Dark Souls III**, which enables rapid access to the boss encounter and significantly reduces reset time between episodes, improving training efficiency and experimental control
+- [Source Code](https://github.com/dustinlgit/darksouls-ai) for ProximalSouls
 
 ## **Documentation & Tutorials:**
-
+- [Stable-Baselines3 PPO](https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html) documentation
 - If you are interested in a more detailed look into our quantitative results, [**here**](https://www.notion.so/f916c32285374e89a0cf2b161c35af28?pvs=21) is a spreadsheet put together by Leah of her specific runs and documentation throughout training.
 
 ## **Other Websites / Links:**
+- [Black Myth Unified](https://jack-emerald.github.io/BlackMyth-Unified_Mind/index.html) is a past group that tackled another "soulslike" game, giving us the inspiration for this project
+- [Omni's Hackpad](https://badecho.com/index.php/2020/09/25/hacking-dark-souls-iii-part-1/) for giving us the idea to extract features directly from memory instead of through frame data
 
 **AI Tools Used:**
-
 - Tools: ChatGPT, Claude, Gemini
     - Used for: 
-        - clarifying PPO theory and debugging conceptual reinforcement learning issues
-        - refining reward design
-        - improving report clarity
-        - debugging codebase
+        - Clarifying PPO theory and debugging conceptual reinforcement learning issues
+        - Refining reward design
+        - Improving report clarity
+        - Debugging codebase
+        - Example snippets for libraries
     - Where it appears: 
         - Project Summary 
         - Various parts of the environment code
             - `controller.py` mostly AI generated with manual tweaking
-            - most code was not directly generated
-                - built off AI examples
+            - Translating certain assembly portions of [The Grand Archives](https://github.com/The-Grand-Archives/Dark-Souls-III-CT-TGA) to Python
+            - Most code was not directly generated but tweaked/debugged
+        - Callbacks in `train.py`
+        - Formatting/styling of the report was tweaked with the help of AI

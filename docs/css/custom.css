@@ -36,8 +36,8 @@ body > .container {
   margin: 20px 0;
 }
 
-.container > {
-  margin-bottom: 25px;
+.container > * {
+  margin-bottom: 30 !important;
 }
 
 .footer > .container {
@@ -57,4 +57,40 @@ figure {
   max-width: 700px;
   width: 100%;
   height: auto;
+}
+
+/* styling so code blocks look right */
+summary {
+  cursor: pointer;
+  background: #eaeaea;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+details[open] summary {
+  background: #d6e4ff;
+}
+
+/* Remove default arrow */
+summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+/* Remove arrow in Chrome/Safari */
+summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Custom arrow */
+summary::before {
+  content: "▶";
+  display: inline-block;
+  margin-right: 8px;
+  transition: transform 0.2s ease;
+}
+
+/* Rotate when open */
+details[open] summary::before {
+  transform: rotate(90deg);
 }
