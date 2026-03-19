@@ -94,3 +94,7 @@ summary::before {
 details[open] summary::before {
   transform: rotate(90deg);
 }
+
+.container > details {
+  margin-bottom: 30px !important;
+}

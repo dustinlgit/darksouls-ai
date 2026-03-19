@@ -88,9 +88,9 @@ Training was conducted over a variable number of timesteps. Each environment we 
 - `n_steps=1024 (default=2048)`
 - `n_epochs=5 (default=10)`
 - `ent_coef=0.01 (default=0.0)`
-- `learning_rate=1e-4 (default=0.0)`
+- `learning_rate=1e-4 (default=3e-4)`
 
-with the rationale being that our observations are cleaner now, so we want to try more exploratory behavior. While we do encourage exploration, with more frequent short-sighted updates, this also introduces more risk of learning "bad" things rapidly. So we lowered the learning rate to another widely used value, to limit how much can be learned at once.
+with the rationale being that our observations are cleaner now, so we want to try more exploratory behavior. While we do encourage exploration, with more frequent short-sighted updates, this also introduces more risk of learning "bad" things rapidly. So we lowered the learning rate to another commonly used value, to limit how much can be learned at once.
 
 ---
 
@@ -374,7 +374,7 @@ def _calculate_reward(self, prev_player_norm_hp, prev_boss_norm_hp, player_norm_
     <img src="assets/final/c3g2.png" class="graph">
     <figcaption>
         <small>
-            <i>Figure 3: Damage Taken, Damage Dealt, Moving Best Win Rate (Last 100 episodes), Avg Episode Length, Avg Episode Reward, Overall Success Rate, Entropy Loss, Explained Variance, Approximate KL</i>
+            <i>Figure 4: Damage Taken, Damage Dealt, Moving Best Win Rate (Last 100 episodes), Avg Episode Length, Avg Episode Reward, Overall Success Rate, Entropy Loss, Explained Variance, Approximate KL</i>
         </small>
     </figcaption>
 </figure>
