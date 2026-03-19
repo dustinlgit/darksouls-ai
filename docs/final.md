@@ -3,14 +3,13 @@ layout: default
 title: Final Report
 
 ---
-## Video (TODO)
+## Video
 
-[Embed your video here — e.g. paste a YouTube embed link or URL]
-
-- Length: ~3 minutes recommended, 4 minutes max (strictly enforced)
-- Must include: brief problem description, "before" training performance, "after" training performance
-- Optional: failure modes, approach summary, future ideas
-- Minimum resolution: 720p; speech must be comprehensible
+<iframe
+    src="https://www.youtube.com/watch?v=Ss4a7VkUojE"
+    style="width:100%; aspect-ratio: 16/9;"
+    allowfullscreen> 
+</iframe>
 
 ---
 
