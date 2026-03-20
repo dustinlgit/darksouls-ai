@@ -5,9 +5,11 @@ title: Final Report
 ---
 ## Video
 
-<a href="https://www.youtube.com/watch?v=Ss4a7VkUojE" target="_blank">
-  <img src="https://img.youtube.com/vi/Ss4a7VkUojE/maxresdefault.jpg" width="100%">
-</a>
+<iframe
+    src="https://www.youtube.com/embed/Ss4a7VkUojE"
+    style="width:100%; aspect-ratio: 16/9;"
+    allowfullscreen> 
+</iframe>
 
 --- 
 
